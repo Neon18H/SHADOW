@@ -1,6 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import Playbook, PlaybookAction
+from .models import Playbook, PlaybookAction, IntegrationStatus
 
 
 class PlaybookForm(forms.ModelForm):
@@ -8,8 +8,12 @@ class PlaybookForm(forms.ModelForm):
         model = Playbook
         fields = ['name', 'description', 'enabled', 'match_types', 'min_severity', 'mode']
         widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
             'match_types': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
             'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'min_severity': forms.Select(attrs={'class': 'form-select'}),
+            'mode': forms.Select(attrs={'class': 'form-select'}),
+            'enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
     def clean_match_types(self):
@@ -35,6 +39,8 @@ class PlaybookActionForm(forms.ModelForm):
         model = PlaybookAction
         fields = ['type', 'order', 'config']
         widgets = {
+            'type': forms.Select(attrs={'class': 'form-select'}),
+            'order': forms.NumberInput(attrs={'class': 'form-control'}),
             'config': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
         }
 
@@ -63,3 +69,29 @@ PlaybookActionFormSet = inlineformset_factory(
     extra=1,
     can_delete=True,
 )
+
+
+class IntegrationConfigForm(forms.ModelForm):
+    tags = forms.CharField(
+        required=False,
+        help_text='Separadas por coma.',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'soc,prod,primary'}),
+    )
+
+    class Meta:
+        model = IntegrationStatus
+        fields = ['api_url', 'verify_tls', 'timeout', 'enabled', 'tags']
+        widgets = {
+            'api_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://wazuh.example/api'}),
+            'verify_tls': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'timeout': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 120}),
+            'enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def clean_tags(self):
+        value = self.cleaned_data.get('tags', '')
+        if not value:
+            return []
+        if isinstance(value, list):
+            return value
+        return [tag.strip() for tag in value.split(',') if tag.strip()]

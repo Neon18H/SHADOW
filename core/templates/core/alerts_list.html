@@ -1,71 +1,99 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<h1 class="mb-4">Alertas</h1>
-<form class="row g-3 mb-4" method="get">
-    <div class="col-md-2">
-        <label class="form-label">Severidad</label>
-        <select class="form-select" name="severity">
-            <option value="">Todas</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="critical">Critical</option>
-        </select>
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="mb-1">Alertas</h2>
+        <div class="text-secondary">Gestión y triage centralizado</div>
     </div>
-    <div class="col-md-2">
-        <label class="form-label">Estado</label>
-        <select class="form-select" name="status">
-            <option value="">Todos</option>
-            <option value="new">Nuevo</option>
-            <option value="in_progress">En progreso</option>
-            <option value="resolved">Resuelto</option>
-            <option value="false_positive">Falso positivo</option>
-        </select>
-    </div>
-    <div class="col-md-2">
-        <label class="form-label">Agente</label>
-        <input class="form-control" name="agent" placeholder="host">
-    </div>
-    <div class="col-md-2">
-        <label class="form-label">Regla</label>
-        <input class="form-control" name="rule" placeholder="rule id">
-    </div>
-    <div class="col-md-2">
-        <label class="form-label">Desde</label>
-        <input class="form-control" type="date" name="from">
-    </div>
-    <div class="col-md-2">
-        <label class="form-label">Hasta</label>
-        <input class="form-control" type="date" name="to">
-    </div>
-    <div class="col-md-12">
-        <button class="btn btn-primary">Filtrar</button>
+    <input class="form-control form-control-sm search-input" style="max-width: 260px;" placeholder="Buscar alertas" data-table-search="alertsTable">
+</div>
+
+<form class="card mb-4" method="get">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label">Severidad</label>
+                <select class="form-select" name="severity">
+                    <option value="">Todas</option>
+                    <option value="low" {% if request.GET.severity == 'low' %}selected{% endif %}>Low</option>
+                    <option value="medium" {% if request.GET.severity == 'medium' %}selected{% endif %}>Medium</option>
+                    <option value="high" {% if request.GET.severity == 'high' %}selected{% endif %}>High</option>
+                    <option value="critical" {% if request.GET.severity == 'critical' %}selected{% endif %}>Critical</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Estado</label>
+                <select class="form-select" name="status">
+                    <option value="">Todos</option>
+                    <option value="new" {% if request.GET.status == 'new' %}selected{% endif %}>Nuevo</option>
+                    <option value="in_progress" {% if request.GET.status == 'in_progress' %}selected{% endif %}>En progreso</option>
+                    <option value="resolved" {% if request.GET.status == 'resolved' %}selected{% endif %}>Resuelto</option>
+                    <option value="false_positive" {% if request.GET.status == 'false_positive' %}selected{% endif %}>Falso positivo</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Agente</label>
+                <input class="form-control" name="agent" placeholder="host" value="{{ request.GET.agent }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Regla</label>
+                <input class="form-control" name="rule" placeholder="rule id" value="{{ request.GET.rule }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Desde</label>
+                <input class="form-control" type="date" name="from" value="{{ request.GET.from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Hasta</label>
+                <input class="form-control" type="date" name="to" value="{{ request.GET.to }}">
+            </div>
+            <div class="col-md-12 d-flex gap-2">
+                <button class="btn btn-info">Filtrar</button>
+                <a class="btn btn-outline-light" href="{% url 'alerts_list' %}">Limpiar</a>
+            </div>
+        </div>
     </div>
 </form>
-<table class="table table-hover">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Severidad</th>
-            <th>Título</th>
-            <th>Agente</th>
-            <th>Ocurrencias</th>
-            <th>Último</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for alert in alerts %}
-        <tr>
-            <td><a href="{% url 'alert_detail' alert.id %}">{{ alert.id }}</a></td>
-            <td>{{ alert.severity }}</td>
-            <td>{{ alert.title }}</td>
-            <td>{{ alert.agent_name }}</td>
-            <td>{{ alert.occurrences }}</td>
-            <td>{{ alert.last_seen }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6">No hay alertas</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+
+{% if request.GET %}
+<div class="mb-3 d-flex flex-wrap gap-2">
+    {% if request.GET.severity %}<span class="chip">Severity: {{ request.GET.severity }}</span>{% endif %}
+    {% if request.GET.status %}<span class="chip">Status: {{ request.GET.status }}</span>{% endif %}
+    {% if request.GET.agent %}<span class="chip">Agent: {{ request.GET.agent }}</span>{% endif %}
+    {% if request.GET.rule %}<span class="chip">Rule: {{ request.GET.rule }}</span>{% endif %}
+    {% if request.GET.from %}<span class="chip">From: {{ request.GET.from }}</span>{% endif %}
+    {% if request.GET.to %}<span class="chip">To: {{ request.GET.to }}</span>{% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="alertsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Severidad</th>
+                    <th>Título</th>
+                    <th>Agente</th>
+                    <th>Ocurrencias</th>
+                    <th>Último</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in alerts %}
+                <tr>
+                    <td><a href="{% url 'alert_detail' alert.id %}" class="text-info">{{ alert.id }}</a></td>
+                    <td><span class="badge badge-severity severity-{{ alert.severity }}">{{ alert.severity|title }}</span></td>
+                    <td>{{ alert.title }}</td>
+                    <td>{{ alert.agent_name }}</td>
+                    <td>{{ alert.occurrences }}</td>
+                    <td>{{ alert.last_seen }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6">No hay alertas</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}

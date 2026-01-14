@@ -5,38 +5,165 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SHADOW SOAR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --soar-bg: #0b1220;
+            --soar-card: #111a2b;
+            --soar-border: #1d2940;
+            --soar-accent: #4cc9f0;
+            --soar-text: #d5def5;
+            --soar-muted: #92a4c1;
+        }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--soar-bg);
+            color: var(--soar-text);
+        }
+        .app-shell {
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 260px;
+            background: #0f172a;
+            border-right: 1px solid var(--soar-border);
+        }
+        .sidebar .nav-link {
+            color: var(--soar-muted);
+            border-radius: 10px;
+            margin-bottom: 6px;
+        }
+        .sidebar .nav-link.active,
+        .sidebar .nav-link:hover {
+            background: rgba(76, 201, 240, 0.15);
+            color: #fff;
+        }
+        .topbar {
+            background: #0f1b33;
+            border-bottom: 1px solid var(--soar-border);
+        }
+        .card {
+            background: var(--soar-card);
+            border: 1px solid var(--soar-border);
+            color: var(--soar-text);
+        }
+        .table {
+            color: var(--soar-text);
+        }
+        .table thead {
+            background: #0e1728;
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(76, 201, 240, 0.08);
+        }
+        .badge-severity {
+            padding: 0.35rem 0.65rem;
+            font-weight: 600;
+        }
+        .severity-critical { background: #ef233c; }
+        .severity-high { background: #f77f00; }
+        .severity-medium { background: #fcbf49; color: #1f2a44; }
+        .severity-low { background: #2a9d8f; }
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            background: rgba(76, 201, 240, 0.15);
+            color: var(--soar-text);
+            border: 1px solid rgba(76, 201, 240, 0.3);
+            font-size: 0.8rem;
+        }
+        .metric-card {
+            border-left: 3px solid var(--soar-accent);
+        }
+        .search-input {
+            background: #0f1a31;
+            border: 1px solid var(--soar-border);
+            color: var(--soar-text);
+        }
+        .search-input::placeholder {
+            color: var(--soar-muted);
+        }
+        .form-control, .form-select {
+            background: #0f1a31;
+            border: 1px solid var(--soar-border);
+            color: var(--soar-text);
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--soar-accent);
+            box-shadow: 0 0 0 0.2rem rgba(76, 201, 240, 0.2);
+        }
+        .btn-outline-light {
+            border-color: var(--soar-border);
+        }
+        .toast-container {
+            z-index: 1080;
+        }
+        .content-wrapper {
+            padding: 1.5rem 2rem;
+        }
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 100%;
+                position: static;
+            }
+        }
+    </style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="/">SHADOW SOAR</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="{% url 'alerts_list' %}">Alertas</a></li>
-                <li class="nav-item"><a class="nav-link" href="{% url 'playbooks_list' %}">Playbooks</a></li>
-                <li class="nav-item"><a class="nav-link" href="{% url 'executions_list' %}">Ejecuciones</a></li>
-                <li class="nav-item"><a class="nav-link" href="{% url 'audit_list' %}">Auditoría</a></li>
-                <li class="nav-item"><a class="nav-link" href="{% url 'integrations' %}">Integraciones</a></li>
-            </ul>
-            {% if user.is_authenticated %}
-            <span class="navbar-text text-light me-3">{{ user.username }}</span>
-            <a class="btn btn-outline-light" href="{% url 'logout' %}">Salir</a>
-            {% endif %}
+<div class="app-shell d-flex">
+    <aside class="sidebar p-3 d-flex flex-column">
+        <div class="d-flex align-items-center mb-4">
+            <div class="bg-info text-dark fw-bold rounded-circle d-inline-flex align-items-center justify-content-center" style="width:36px;height:36px;">S</div>
+            <div class="ms-2">
+                <div class="fw-semibold">SHADOW SOAR</div>
+                <small class="text-secondary">SOC Console</small>
+            </div>
         </div>
+        <nav class="nav flex-column">
+            <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
+            <a class="nav-link" href="{% url 'alerts_list' %}">Alertas</a>
+            <a class="nav-link" href="{% url 'playbooks_list' %}">Playbooks</a>
+            <a class="nav-link" href="{% url 'executions_list' %}">Ejecuciones</a>
+            <a class="nav-link" href="{% url 'audit_list' %}">Auditoría</a>
+            <a class="nav-link" href="{% url 'integrations' %}">Integraciones</a>
+        </nav>
+        <div class="mt-auto pt-4 text-secondary small">
+            <div>Enterprise SOAR</div>
+            <div>v1.0</div>
+        </div>
+    </aside>
+    <div class="flex-grow-1 d-flex flex-column">
+        <header class="topbar px-4 py-3 d-flex align-items-center justify-content-between">
+            <div>
+                <h6 class="mb-0 text-uppercase text-secondary">SOC Operations</h6>
+                <div class="fw-semibold">Control Center</div>
+            </div>
+            {% if user.is_authenticated %}
+            <div class="d-flex align-items-center gap-3">
+                <span class="text-secondary">{{ user.username }}</span>
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button class="btn btn-outline-light btn-sm" type="submit">Cerrar sesión</button>
+                </form>
+            </div>
+            {% endif %}
+        </header>
+        <main class="content-wrapper">
+            {% if messages %}
+                <div class="mb-3">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} mb-2">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
     </div>
-</nav>
-
-<div class="container py-4">
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-    {% block content %}{% endblock %}
 </div>
 
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
@@ -57,6 +184,17 @@ function showToast(message, variant='primary') {
     const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
     toast.show();
 }
+
+document.querySelectorAll('[data-table-search]').forEach((input) => {
+    input.addEventListener('input', () => {
+        const table = document.getElementById(input.dataset.tableSearch);
+        if (!table) return;
+        const filter = input.value.toLowerCase();
+        table.querySelectorAll('tbody tr').forEach((row) => {
+            row.style.display = row.innerText.toLowerCase().includes(filter) ? '' : 'none';
+        });
+    });
+});
 </script>
 {% block scripts %}{% endblock %}
 </body>

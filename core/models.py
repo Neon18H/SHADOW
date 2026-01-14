@@ -154,10 +154,16 @@ class AuditLog(models.Model):
 
 class IntegrationStatus(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    api_url = models.URLField(blank=True)
+    verify_tls = models.BooleanField(default=True)
+    timeout = models.PositiveIntegerField(default=10)
+    enabled = models.BooleanField(default=True)
+    tags = models.JSONField(default=list, blank=True)
     last_heartbeat = models.DateTimeField(null=True, blank=True)
     last_tested = models.DateTimeField(null=True, blank=True)
     last_status = models.CharField(max_length=50, blank=True)
     details = models.TextField(blank=True)
+    last_logs = models.JSONField(default=list, blank=True)
 
     class Meta:
         ordering = ['name']
