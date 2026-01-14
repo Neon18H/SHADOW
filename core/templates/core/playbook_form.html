@@ -1,0 +1,39 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h1>{% if playbook %}Editar{% else %}Crear{% endif %} Playbook</h1>
+<form method="post">
+    {% csrf_token %}
+    <div class="card mb-3">
+        <div class="card-body">
+            {{ form.as_p }}
+        </div>
+    </div>
+    <div class="card mb-3">
+        <div class="card-header">Acciones</div>
+        <div class="card-body">
+            {{ formset.management_form }}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Orden</th>
+                        <th>Config (JSON)</th>
+                        <th>Borrar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for form in formset %}
+                    <tr>
+                        <td>{{ form.type }}</td>
+                        <td>{{ form.order }}</td>
+                        <td>{{ form.config }}</td>
+                        <td>{{ form.DELETE }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <button class="btn btn-primary" type="submit">Guardar</button>
+</form>
+{% endblock %}

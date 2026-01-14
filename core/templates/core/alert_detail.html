@@ -1,0 +1,122 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h1>Alerta #{{ alert.id }}</h1>
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ alert.title }}</h5>
+                <p class="card-text">{{ alert.description }}</p>
+                <div class="row">
+                    <div class="col-md-4"><strong>Severidad:</strong> {{ alert.severity }}</div>
+                    <div class="col-md-4"><strong>Estado:</strong> {{ alert.status }}</div>
+                    <div class="col-md-4"><strong>Agente:</strong> {{ alert.agent_name }}</div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-4"><strong>Rule ID:</strong> {{ alert.rule_id }}</div>
+                    <div class="col-md-4"><strong>Rule Level:</strong> {{ alert.rule_level }}</div>
+                    <div class="col-md-4"><strong>IP:</strong> {{ alert.agent_ip }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="accordion" id="payloadAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingPayload">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePayload">
+                        Raw Payload
+                    </button>
+                </h2>
+                <div id="collapsePayload" class="accordion-collapse collapse" data-bs-parent="#payloadAccordion">
+                    <div class="accordion-body">
+                        <pre>{{ alert.raw_payload|pprint }}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Playbooks sugeridos</h5>
+                <ul class="list-group mb-3">
+                    {% for playbook in playbooks %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ playbook.name }}
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="simulatePlaybook({{ alert.id }})">Simular</button>
+                            <button class="btn btn-sm btn-primary" onclick="executePlaybook({{ alert.id }}, {{ playbook.id }})">Ejecutar</button>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item">Sin playbooks aplicables</li>
+                    {% endfor %}
+                </ul>
+                <div id="executionStatus"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+function simulatePlaybook(alertId) {
+    fetch(`/api/alerts/${alertId}/simulate`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => res.json())
+    .then(data => {
+        showToast(`Simulación: ${JSON.stringify(data.results)}`, 'info');
+    })
+    .catch(() => showToast('Error en simulación', 'danger'));
+}
+
+function executePlaybook(alertId, playbookId) {
+    fetch(`/api/alerts/${alertId}/playbooks/${playbookId}/execute`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => res.json())
+    .then(data => {
+        showToast(`Ejecución ${data.status}`, 'primary');
+        pollExecution(data.execution_id);
+    })
+    .catch(() => showToast('Error al ejecutar', 'danger'));
+}
+
+function approveExecution(executionId) {
+    fetch(`/api/executions/${executionId}/approve`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => res.json())
+    .then(data => {
+        showToast(`Aprobación ${data.status}`, 'success');
+        pollExecution(data.execution_id);
+    })
+    .catch(() => showToast('Error al aprobar', 'danger'));
+}
+
+function pollExecution(executionId) {
+    fetch(`/api/executions/${executionId}/status`)
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('executionStatus');
+            container.innerHTML = `<div class="alert alert-secondary">Estado: ${data.status}</div>`;
+            if (data.status === 'approved_required') {
+                container.innerHTML += `<button class="btn btn-sm btn-warning" onclick="approveExecution(${data.id})">Aprobar</button>`;
+            }
+            if (data.status === 'running' || data.status === 'approved_required') {
+                setTimeout(() => pollExecution(executionId), 3000);
+            }
+        });
+}
+</script>
+{% endblock %}

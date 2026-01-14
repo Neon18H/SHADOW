@@ -1,0 +1,42 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h1>Ejecución #{{ execution.id }}</h1>
+<p><strong>Alerta:</strong> {{ execution.alert.title }} ({{ execution.alert.id }})</p>
+<p><strong>Playbook:</strong> {{ execution.playbook.name }}</p>
+<p><strong>Estado:</strong> {{ execution.status }}</p>
+
+<h4>Pasos</h4>
+<table class="table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Output/Error</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for step in execution.steps.all %}
+        <tr>
+            <td>{{ step.id }}</td>
+            <td>{{ step.action_type }}</td>
+            <td>{{ step.status }}</td>
+            <td>{{ step.started_at }}</td>
+            <td>{{ step.finished_at }}</td>
+            <td>
+                {% if step.output %}
+                    <pre>{{ step.output }}</pre>
+                {% endif %}
+                {% if step.error %}
+                    <pre class="text-danger">{{ step.error }}</pre>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">Sin pasos</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

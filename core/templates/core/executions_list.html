@@ -1,0 +1,30 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h1>Ejecuciones</h1>
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Alerta</th>
+            <th>Playbook</th>
+            <th>Estado</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for execution in executions %}
+        <tr>
+            <td><a href="{% url 'execution_detail' execution.id %}">{{ execution.id }}</a></td>
+            <td>{{ execution.alert.id }}</td>
+            <td>{{ execution.playbook.name }}</td>
+            <td>{{ execution.status }}</td>
+            <td>{{ execution.started_at }}</td>
+            <td>{{ execution.finished_at }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">Sin ejecuciones</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

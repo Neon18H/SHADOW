@@ -1,0 +1,64 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h1 class="mb-4">Dashboard SOC</h1>
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card text-bg-primary">
+            <div class="card-body">
+                <h6 class="card-title">Alertas nuevas hoy</h6>
+                <h2>{{ alerts_today }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-danger">
+            <div class="card-body">
+                <h6 class="card-title">Ejecuciones fallidas</h6>
+                <h2>{{ failed_execs }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-dark">
+            <div class="card-body">
+                <h6 class="card-title">MTTR promedio</h6>
+                <h2>{% if mttr %}{{ mttr }}{% else %}-{% endif %}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-bg-secondary">
+            <div class="card-body">
+                <h6 class="card-title">Alertas críticas</h6>
+                <h2>{{ severity_counts.critical|default:0 }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h4>Últimas alertas</h4>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Severidad</th>
+            <th>Título</th>
+            <th>Agente</th>
+            <th>Último visto</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alert in latest_alerts %}
+        <tr>
+            <td><a href="{% url 'alert_detail' alert.id %}">{{ alert.id }}</a></td>
+            <td>{{ alert.severity }}</td>
+            <td>{{ alert.title }}</td>
+            <td>{{ alert.agent_name }}</td>
+            <td>{{ alert.last_seen }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">Sin alertas</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
