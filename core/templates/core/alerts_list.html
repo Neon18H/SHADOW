@@ -1,0 +1,71 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<h1 class="mb-4">Alertas</h1>
+<form class="row g-3 mb-4" method="get">
+    <div class="col-md-2">
+        <label class="form-label">Severidad</label>
+        <select class="form-select" name="severity">
+            <option value="">Todas</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Estado</label>
+        <select class="form-select" name="status">
+            <option value="">Todos</option>
+            <option value="new">Nuevo</option>
+            <option value="in_progress">En progreso</option>
+            <option value="resolved">Resuelto</option>
+            <option value="false_positive">Falso positivo</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Agente</label>
+        <input class="form-control" name="agent" placeholder="host">
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Regla</label>
+        <input class="form-control" name="rule" placeholder="rule id">
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Desde</label>
+        <input class="form-control" type="date" name="from">
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Hasta</label>
+        <input class="form-control" type="date" name="to">
+    </div>
+    <div class="col-md-12">
+        <button class="btn btn-primary">Filtrar</button>
+    </div>
+</form>
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Severidad</th>
+            <th>Título</th>
+            <th>Agente</th>
+            <th>Ocurrencias</th>
+            <th>Último</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alert in alerts %}
+        <tr>
+            <td><a href="{% url 'alert_detail' alert.id %}">{{ alert.id }}</a></td>
+            <td>{{ alert.severity }}</td>
+            <td>{{ alert.title }}</td>
+            <td>{{ alert.agent_name }}</td>
+            <td>{{ alert.occurrences }}</td>
+            <td>{{ alert.last_seen }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">No hay alertas</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
