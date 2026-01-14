@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="es">
 <head>
@@ -8,147 +9,54 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --soar-bg: #0b1220;
-            --soar-card: #111a2b;
-            --soar-border: #1d2940;
-            --soar-accent: #4cc9f0;
-            --soar-text: #d5def5;
-            --soar-muted: #92a4c1;
-        }
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: var(--soar-bg);
-            color: var(--soar-text);
-        }
-        .app-shell {
-            min-height: 100vh;
-        }
-        .sidebar {
-            width: 260px;
-            background: #0f172a;
-            border-right: 1px solid var(--soar-border);
-        }
-        .sidebar .nav-link {
-            color: var(--soar-muted);
-            border-radius: 10px;
-            margin-bottom: 6px;
-        }
-        .sidebar .nav-link.active,
-        .sidebar .nav-link:hover {
-            background: rgba(76, 201, 240, 0.15);
-            color: #fff;
-        }
-        .topbar {
-            background: #0f1b33;
-            border-bottom: 1px solid var(--soar-border);
-        }
-        .card {
-            background: var(--soar-card);
-            border: 1px solid var(--soar-border);
-            color: var(--soar-text);
-        }
-        .table {
-            color: var(--soar-text);
-        }
-        .table thead {
-            background: #0e1728;
-        }
-        .table-hover tbody tr:hover {
-            background-color: rgba(76, 201, 240, 0.08);
-        }
-        .badge-severity {
-            padding: 0.35rem 0.65rem;
-            font-weight: 600;
-        }
-        .severity-critical { background: #ef233c; }
-        .severity-high { background: #f77f00; }
-        .severity-medium { background: #fcbf49; color: #1f2a44; }
-        .severity-low { background: #2a9d8f; }
-        .chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 0.25rem 0.6rem;
-            border-radius: 999px;
-            background: rgba(76, 201, 240, 0.15);
-            color: var(--soar-text);
-            border: 1px solid rgba(76, 201, 240, 0.3);
-            font-size: 0.8rem;
-        }
-        .metric-card {
-            border-left: 3px solid var(--soar-accent);
-        }
-        .search-input {
-            background: #0f1a31;
-            border: 1px solid var(--soar-border);
-            color: var(--soar-text);
-        }
-        .search-input::placeholder {
-            color: var(--soar-muted);
-        }
-        .form-control, .form-select {
-            background: #0f1a31;
-            border: 1px solid var(--soar-border);
-            color: var(--soar-text);
-        }
-        .form-control:focus, .form-select:focus {
-            border-color: var(--soar-accent);
-            box-shadow: 0 0 0 0.2rem rgba(76, 201, 240, 0.2);
-        }
-        .btn-outline-light {
-            border-color: var(--soar-border);
-        }
-        .toast-container {
-            z-index: 1080;
-        }
-        .content-wrapper {
-            padding: 1.5rem 2rem;
-        }
-        @media (max-width: 992px) {
-            .sidebar {
-                width: 100%;
-                position: static;
-            }
-        }
-    </style>
+    <link href="{% static 'css/theme.css' %}" rel="stylesheet">
 </head>
 <body>
 <div class="app-shell d-flex">
-    <aside class="sidebar p-3 d-flex flex-column">
-        <div class="d-flex align-items-center mb-4">
-            <div class="bg-info text-dark fw-bold rounded-circle d-inline-flex align-items-center justify-content-center" style="width:36px;height:36px;">S</div>
+    <aside class="sidebar p-3 d-flex flex-column" data-sidebar>
+        <div class="d-flex align-items-center mb-4 sidebar-brand">
+            <div class="brand-mark">S</div>
             <div class="ms-2">
                 <div class="fw-semibold">SHADOW SOAR</div>
-                <small class="text-secondary">SOC Console</small>
+                <small>SOC Console</small>
             </div>
         </div>
-        <nav class="nav flex-column">
-            <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
-            <a class="nav-link" href="{% url 'alerts_list' %}">Alertas</a>
-            <a class="nav-link" href="{% url 'playbooks_list' %}">Playbooks</a>
-            <a class="nav-link" href="{% url 'executions_list' %}">Ejecuciones</a>
-            <a class="nav-link" href="{% url 'audit_list' %}">Auditoría</a>
-            <a class="nav-link" href="{% url 'integrations' %}">Integraciones</a>
+        <nav class="nav flex-column sidebar-nav">
+            <div class="sidebar-section">Overview</div>
+            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">Dashboard</a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'alerts_list' %}active{% endif %}" href="{% url 'alerts_list' %}">Alertas</a>
+            <div class="sidebar-section mt-3">Automation</div>
+            <a class="nav-link {% if request.resolver_match.url_name == 'playbooks_list' %}active{% endif %}" href="{% url 'playbooks_list' %}">Playbooks</a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'executions_list' %}active{% endif %}" href="{% url 'executions_list' %}">Ejecuciones</a>
+            <div class="sidebar-section mt-3">Governance</div>
+            <a class="nav-link {% if request.resolver_match.url_name == 'audit_list' %}active{% endif %}" href="{% url 'audit_list' %}">Auditoría</a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'integrations' %}active{% endif %}" href="{% url 'integrations' %}">Integraciones</a>
         </nav>
-        <div class="mt-auto pt-4 text-secondary small">
+        <div class="mt-auto pt-4 sidebar-footer">
             <div>Enterprise SOAR</div>
             <div>v1.0</div>
         </div>
     </aside>
+    <div class="sidebar-overlay" data-sidebar-overlay></div>
     <div class="flex-grow-1 d-flex flex-column">
         <header class="topbar px-4 py-3 d-flex align-items-center justify-content-between">
-            <div>
-                <h6 class="mb-0 text-uppercase text-secondary">SOC Operations</h6>
-                <div class="fw-semibold">Control Center</div>
+            <div class="d-flex align-items-center gap-3">
+                <button class="sidebar-toggle" type="button" data-sidebar-toggle>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <div>
+                    <h6 class="mb-0 text-uppercase topbar-kicker">SOC Operations</h6>
+                    <div class="fw-semibold">Control Center</div>
+                </div>
             </div>
             {% if user.is_authenticated %}
             <div class="d-flex align-items-center gap-3">
                 <span class="text-secondary">{{ user.username }}</span>
                 <form method="post" action="{% url 'logout' %}">
                     {% csrf_token %}
-                    <button class="btn btn-outline-light btn-sm" type="submit">Cerrar sesión</button>
+                    <button class="btn-soc btn-soc-outline btn-soc-sm" type="submit">Cerrar sesión</button>
                 </form>
             </div>
             {% endif %}
@@ -169,33 +77,7 @@
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-function showToast(message, variant='primary') {
-    const container = document.getElementById('toastContainer');
-    const toastEl = document.createElement('div');
-    toastEl.className = `toast align-items-center text-bg-${variant} border-0`;
-    toastEl.setAttribute('role', 'alert');
-    toastEl.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>`;
-    container.appendChild(toastEl);
-    const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
-    toast.show();
-}
-
-document.querySelectorAll('[data-table-search]').forEach((input) => {
-    input.addEventListener('input', () => {
-        const table = document.getElementById(input.dataset.tableSearch);
-        if (!table) return;
-        const filter = input.value.toLowerCase();
-        table.querySelectorAll('tbody tr').forEach((row) => {
-            row.style.display = row.innerText.toLowerCase().includes(filter) ? '' : 'none';
-        });
-    });
-});
-</script>
+<script src="{% static 'js/dashboard.js' %}" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
