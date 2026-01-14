@@ -1,26 +1,38 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<h1>Alerta #{{ alert.id }}</h1>
-<div class="row">
-    <div class="col-md-8">
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="mb-1">Alerta #{{ alert.id }}</h2>
+        <div class="text-secondary">Investigación y respuesta</div>
+    </div>
+    <span class="chip">{{ alert.source|default:'wazuh'|upper }}</span>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
         <div class="card mb-3">
             <div class="card-body">
-                <h5 class="card-title">{{ alert.title }}</h5>
-                <p class="card-text">{{ alert.description }}</p>
-                <div class="row">
-                    <div class="col-md-4"><strong>Severidad:</strong> {{ alert.severity }}</div>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title mb-2">{{ alert.title }}</h5>
+                        <p class="text-secondary">{{ alert.description }}</p>
+                    </div>
+                    <span class="badge badge-severity severity-{{ alert.severity }}">{{ alert.severity|title }}</span>
+                </div>
+                <div class="row mt-3">
                     <div class="col-md-4"><strong>Estado:</strong> {{ alert.status }}</div>
                     <div class="col-md-4"><strong>Agente:</strong> {{ alert.agent_name }}</div>
+                    <div class="col-md-4"><strong>IP:</strong> {{ alert.agent_ip }}</div>
                 </div>
                 <div class="row mt-2">
                     <div class="col-md-4"><strong>Rule ID:</strong> {{ alert.rule_id }}</div>
                     <div class="col-md-4"><strong>Rule Level:</strong> {{ alert.rule_level }}</div>
-                    <div class="col-md-4"><strong>IP:</strong> {{ alert.agent_ip }}</div>
+                    <div class="col-md-4"><strong>Manager:</strong> {{ alert.manager_name }}</div>
                 </div>
             </div>
         </div>
         <div class="accordion" id="payloadAccordion">
-            <div class="accordion-item">
+            <div class="accordion-item bg-transparent border-0">
                 <h2 class="accordion-header" id="headingPayload">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePayload">
                         Raw Payload
@@ -28,27 +40,33 @@
                 </h2>
                 <div id="collapsePayload" class="accordion-collapse collapse" data-bs-parent="#payloadAccordion">
                     <div class="accordion-body">
-                        <pre>{{ alert.raw_payload|pprint }}</pre>
+                        <pre class="text-secondary">{{ alert.raw_payload|pprint }}</pre>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-lg-4">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Playbooks sugeridos</h5>
-                <ul class="list-group mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="fw-semibold">Playbooks sugeridos</div>
+                    <span class="chip">{{ playbooks|length }} disponibles</span>
+                </div>
+                <ul class="list-group list-group-flush mb-3">
                     {% for playbook in playbooks %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ playbook.name }}
+                    <li class="list-group-item bg-transparent border-0 d-flex justify-content-between align-items-center">
                         <div>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="simulatePlaybook({{ alert.id }})">Simular</button>
-                            <button class="btn btn-sm btn-primary" onclick="executePlaybook({{ alert.id }}, {{ playbook.id }})">Ejecutar</button>
+                            <div class="fw-semibold">{{ playbook.name }}</div>
+                            <small class="text-secondary">Modo: {{ playbook.mode }}</small>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-info" onclick="simulatePlaybook({{ alert.id }})">Simular</button>
+                            <button class="btn btn-info" onclick="executePlaybook({{ alert.id }}, {{ playbook.id }})">Ejecutar</button>
                         </div>
                     </li>
                     {% empty %}
-                    <li class="list-group-item">Sin playbooks aplicables</li>
+                    <li class="list-group-item bg-transparent border-0">Sin playbooks aplicables</li>
                     {% endfor %}
                 </ul>
                 <div id="executionStatus"></div>
@@ -73,7 +91,7 @@ function simulatePlaybook(alertId) {
     })
     .then(res => res.json())
     .then(data => {
-        showToast(`Simulación: ${JSON.stringify(data.results)}`, 'info');
+        showToast('Simulación completada', 'info');
     })
     .catch(() => showToast('Error en simulación', 'danger'));
 }
@@ -85,7 +103,8 @@ function executePlaybook(alertId, playbookId) {
     })
     .then(res => res.json())
     .then(data => {
-        showToast(`Ejecución ${data.status}`, 'primary');
+        const variant = data.status === 'failed' ? 'danger' : 'primary';
+        showToast(`Ejecución ${data.status}`, variant);
         pollExecution(data.execution_id);
     })
     .catch(() => showToast('Error al ejecutar', 'danger'));
@@ -109,9 +128,16 @@ function pollExecution(executionId) {
         .then(res => res.json())
         .then(data => {
             const container = document.getElementById('executionStatus');
-            container.innerHTML = `<div class="alert alert-secondary">Estado: ${data.status}</div>`;
+            let html = `<div class="alert alert-secondary">Estado: ${data.status}</div>`;
             if (data.status === 'approved_required') {
-                container.innerHTML += `<button class="btn btn-sm btn-warning" onclick="approveExecution(${data.id})">Aprobar</button>`;
+                html += `<button class="btn btn-sm btn-warning" onclick="approveExecution(${data.id})">Aprobar</button>`;
+            }
+            container.innerHTML = html;
+            if (data.status === 'failed') {
+                showToast('Ejecución fallida', 'danger');
+            }
+            if (data.status === 'success') {
+                showToast('Ejecución exitosa', 'success');
             }
             if (data.status === 'running' || data.status === 'approved_required') {
                 setTimeout(() => pollExecution(executionId), 3000);

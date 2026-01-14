@@ -1,64 +1,235 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<h1 class="mb-4">Dashboard SOC</h1>
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="mb-1">Dashboard SOC</h2>
+        <div class="text-secondary">Visión ejecutiva del estado operativo.</div>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="chip">Realtime</span>
+        <span class="chip">Últimos 7 días</span>
+    </div>
+</div>
+
 <div class="row g-3 mb-4">
     <div class="col-md-3">
-        <div class="card text-bg-primary">
+        <div class="card metric-card">
             <div class="card-body">
-                <h6 class="card-title">Alertas nuevas hoy</h6>
-                <h2>{{ alerts_today }}</h2>
+                <div class="text-secondary">Critical open</div>
+                <div class="fs-3 fw-semibold">{{ critical_open }}</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-bg-danger">
+        <div class="card metric-card">
             <div class="card-body">
-                <h6 class="card-title">Ejecuciones fallidas</h6>
-                <h2>{{ failed_execs }}</h2>
+                <div class="text-secondary">High open</div>
+                <div class="fs-3 fw-semibold">{{ high_open }}</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-bg-dark">
+        <div class="card metric-card">
             <div class="card-body">
-                <h6 class="card-title">MTTR promedio</h6>
-                <h2>{% if mttr %}{{ mttr }}{% else %}-{% endif %}</h2>
+                <div class="text-secondary">Nuevas hoy</div>
+                <div class="fs-3 fw-semibold">{{ alerts_today }}</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card text-bg-secondary">
+        <div class="card metric-card">
             <div class="card-body">
-                <h6 class="card-title">Alertas críticas</h6>
-                <h2>{{ severity_counts.critical|default:0 }}</h2>
+                <div class="text-secondary">MTTR promedio</div>
+                <div class="fs-5 fw-semibold">{{ mttr }}</div>
             </div>
         </div>
     </div>
 </div>
 
-<h4>Últimas alertas</h4>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Severidad</th>
-            <th>Título</th>
-            <th>Agente</th>
-            <th>Último visto</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for alert in latest_alerts %}
-        <tr>
-            <td><a href="{% url 'alert_detail' alert.id %}">{{ alert.id }}</a></td>
-            <td>{{ alert.severity }}</td>
-            <td>{{ alert.title }}</td>
-            <td>{{ alert.agent_name }}</td>
-            <td>{{ alert.last_seen }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="5">Sin alertas</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="fw-semibold">Alertas por severidad</div>
+                    <span class="chip">Total</span>
+                </div>
+                <canvas id="chartSeverity" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="fw-semibold">Alertas en el tiempo</div>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-info" type="button" onclick="loadAlertsOverTime(7)">7d</button>
+                        <button class="btn btn-outline-info" type="button" onclick="loadAlertsOverTime(30)">30d</button>
+                    </div>
+                </div>
+                <canvas id="chartAlertsOverTime" height="140"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="fw-semibold">Top reglas</div>
+                    <span class="chip">Top 5</span>
+                </div>
+                <canvas id="chartTopRules" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="fw-semibold">Ejecuciones (30d)</div>
+                    <span class="chip">Success vs Failed</span>
+                </div>
+                <canvas id="chartExecutions" height="200"></canvas>
+                <div class="mt-3 text-secondary">Playbooks ejecutados 7d: <strong class="text-info">{{ playbooks_executed }}</strong></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="fw-semibold">MTTR trend (min)</div>
+                    <span class="chip">7d</span>
+                </div>
+                <canvas id="chartMttr" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <div class="fw-semibold">Últimas alertas</div>
+                <small class="text-secondary">Monitoreo en tiempo real</small>
+            </div>
+            <input class="form-control form-control-sm search-input" style="max-width: 260px;" placeholder="Buscar en la tabla" data-table-search="latestAlertsTable">
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover" id="latestAlertsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Severidad</th>
+                        <th>Título</th>
+                        <th>Agente</th>
+                        <th>Último visto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in latest_alerts %}
+                    <tr>
+                        <td><a href="{% url 'alert_detail' alert.id %}" class="text-info">{{ alert.id }}</a></td>
+                        <td><span class="badge badge-severity severity-{{ alert.severity }}">{{ alert.severity|title }}</span></td>
+                        <td>{{ alert.title }}</td>
+                        <td>{{ alert.agent_name }}</td>
+                        <td>{{ alert.last_seen }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5">Sin alertas</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+let chartAlertsOverTime;
+const chartConfig = {
+    plugins: {
+        legend: { labels: { color: '#d5def5' } },
+    },
+    scales: {
+        x: { ticks: { color: '#92a4c1' }, grid: { color: '#1d2940' } },
+        y: { ticks: { color: '#92a4c1' }, grid: { color: '#1d2940' } },
+    }
+};
+
+function renderChart(id, type, data, options = {}) {
+    const ctx = document.getElementById(id);
+    return new Chart(ctx, {
+        type,
+        data,
+        options: { ...chartConfig, ...options }
+    });
+}
+
+function loadAlertsOverTime(days) {
+    fetch(`/api/metrics/alerts-over-time?days=${days}`)
+        .then(res => res.json())
+        .then(data => {
+            const dataset = {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Alertas',
+                    data: data.data,
+                    borderColor: '#4cc9f0',
+                    backgroundColor: 'rgba(76, 201, 240, 0.2)',
+                    tension: 0.4,
+                    fill: true,
+                }]
+            };
+            if (chartAlertsOverTime) {
+                chartAlertsOverTime.data = dataset;
+                chartAlertsOverTime.update();
+            } else {
+                chartAlertsOverTime = renderChart('chartAlertsOverTime', 'line', dataset);
+            }
+        });
+}
+
+Promise.all([
+    fetch('/api/metrics/alerts-by-severity').then(res => res.json()),
+    fetch('/api/metrics/top-rules').then(res => res.json()),
+    fetch('/api/metrics/executions-success-failed').then(res => res.json()),
+    fetch('/api/metrics/mttr-trend?days=7').then(res => res.json())
+]).then(([severity, topRules, executions, mttr]) => {
+    renderChart('chartSeverity', 'doughnut', {
+        labels: severity.labels,
+        datasets: [{ data: severity.data, backgroundColor: ['#2a9d8f', '#fcbf49', '#f77f00', '#ef233c'] }]
+    }, { scales: {} });
+
+    renderChart('chartTopRules', 'bar', {
+        labels: topRules.labels,
+        datasets: [{ data: topRules.data, backgroundColor: '#4cc9f0' }]
+    });
+
+    renderChart('chartExecutions', 'pie', {
+        labels: executions.labels,
+        datasets: [{ data: executions.data, backgroundColor: ['#2a9d8f', '#ef233c'] }]
+    }, { scales: {} });
+
+    renderChart('chartMttr', 'line', {
+        labels: mttr.labels,
+        datasets: [{
+            data: mttr.data,
+            borderColor: '#fcbf49',
+            backgroundColor: 'rgba(252, 191, 73, 0.2)',
+            tension: 0.3,
+            fill: true,
+        }]
+    });
+});
+
+loadAlertsOverTime(7);
+</script>
 {% endblock %}

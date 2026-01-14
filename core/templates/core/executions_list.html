@@ -1,30 +1,49 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<h1>Ejecuciones</h1>
-<table class="table table-hover">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Alerta</th>
-            <th>Playbook</th>
-            <th>Estado</th>
-            <th>Inicio</th>
-            <th>Fin</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for execution in executions %}
-        <tr>
-            <td><a href="{% url 'execution_detail' execution.id %}">{{ execution.id }}</a></td>
-            <td>{{ execution.alert.id }}</td>
-            <td>{{ execution.playbook.name }}</td>
-            <td>{{ execution.status }}</td>
-            <td>{{ execution.started_at }}</td>
-            <td>{{ execution.finished_at }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6">Sin ejecuciones</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="mb-1">Ejecuciones</h2>
+        <div class="text-secondary">Seguimiento de playbooks</div>
+    </div>
+    <input class="form-control form-control-sm search-input" style="max-width: 240px;" placeholder="Buscar ejecuciones" data-table-search="executionsTable">
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="executionsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Alerta</th>
+                    <th>Playbook</th>
+                    <th>Estado</th>
+                    <th>Inicio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for execution in executions %}
+                <tr>
+                    <td><a href="{% url 'execution_detail' execution.id %}" class="text-info">{{ execution.id }}</a></td>
+                    <td>{{ execution.alert.title }}</td>
+                    <td>{{ execution.playbook.name }}</td>
+                    <td>
+                        {% if execution.status == 'success' %}
+                            <span class="badge bg-success">Success</span>
+                        {% elif execution.status == 'failed' %}
+                            <span class="badge bg-danger">Failed</span>
+                        {% elif execution.status == 'approved_required' %}
+                            <span class="badge bg-warning text-dark">Approval</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ execution.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ execution.started_at }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5">Sin ejecuciones</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}

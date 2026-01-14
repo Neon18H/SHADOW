@@ -4,7 +4,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.core.mail import send_mail
 
-from .models import Execution, ExecutionStep, Playbook
+from .models import Execution, ExecutionStep, Playbook, IntegrationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +18,15 @@ SEVERITY_RANK = {
 
 class WazuhClient:
     def __init__(self):
-        self.base_url = settings.WAZUH_API_URL.rstrip('/')
+        status = IntegrationStatus.objects.filter(name='wazuh').first()
+        configured_url = status.api_url if status and status.api_url else settings.WAZUH_API_URL
+        self.base_url = configured_url.rstrip('/') if configured_url else ''
         self.user = settings.WAZUH_API_USER
         self.password = settings.WAZUH_API_PASSWORD
         self.token = settings.WAZUH_API_TOKEN
-        self.verify_tls = settings.WAZUH_VERIFY_TLS
+        self.verify_tls = status.verify_tls if status else settings.WAZUH_VERIFY_TLS
+        self.timeout = status.timeout if status else 10
+        self.enabled = status.enabled if status else True
 
     def _headers(self):
         headers = {'Content-Type': 'application/json'}
@@ -38,10 +42,12 @@ class WazuhClient:
         return None
 
     def request(self, method, path, **kwargs):
+        if not self.enabled:
+            raise ValueError('Wazuh integration is disabled')
         if not self.base_url:
             raise ValueError('WAZUH_API_URL is not configured')
         url = f"{self.base_url}{path}"
-        timeout = kwargs.pop('timeout', 10)
+        timeout = kwargs.pop('timeout', self.timeout)
         response = requests.request(
             method,
             url,

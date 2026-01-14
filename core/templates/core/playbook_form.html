@@ -1,39 +1,84 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<h1>{% if playbook %}Editar{% else %}Crear{% endif %} Playbook</h1>
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="mb-1">{% if playbook %}Editar Playbook{% else %}Nuevo Playbook{% endif %}</h2>
+        <div class="text-secondary">Define reglas de automatización</div>
+    </div>
+    <a class="btn btn-outline-light" href="{% url 'playbooks_list' %}">Volver</a>
+</div>
+
 <form method="post">
     {% csrf_token %}
-    <div class="card mb-3">
-        <div class="card-body">
-            {{ form.as_p }}
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    {{ form.non_field_errors }}
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        {{ form.name }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción</label>
+                        {{ form.description }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Match types</label>
+                        {{ form.match_types }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Severidad mínima</label>
+                        {{ form.min_severity }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Modo</label>
+                        {{ form.mode }}
+                    </div>
+                    <div class="form-check form-switch">
+                        {{ form.enabled }}
+                        <label class="form-check-label">Playbook habilitado</label>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="card mb-3">
-        <div class="card-header">Acciones</div>
-        <div class="card-body">
-            {{ formset.management_form }}
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Tipo</th>
-                        <th>Orden</th>
-                        <th>Config (JSON)</th>
-                        <th>Borrar</th>
-                    </tr>
-                </thead>
-                <tbody>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="fw-semibold">Acciones</div>
+                        <span class="chip">Config JSON</span>
+                    </div>
+                    {{ formset.management_form }}
                     {% for form in formset %}
-                    <tr>
-                        <td>{{ form.type }}</td>
-                        <td>{{ form.order }}</td>
-                        <td>{{ form.config }}</td>
-                        <td>{{ form.DELETE }}</td>
-                    </tr>
+                        <div class="border rounded-3 p-3 mb-3">
+                            {{ form.id }}
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-4">
+                                    <label class="form-label">Tipo</label>
+                                    {{ form.type }}
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Orden</label>
+                                    {{ form.order }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Config</label>
+                                    {{ form.config }}
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        {{ form.DELETE }}
+                                        <label class="form-check-label">Eliminar acción</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     {% endfor %}
-                </tbody>
-            </table>
+                </div>
+            </div>
         </div>
     </div>
-    <button class="btn btn-primary" type="submit">Guardar</button>
+    <button class="btn btn-info mt-4" type="submit">Guardar playbook</button>
 </form>
 {% endblock %}

@@ -1,42 +1,89 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<h1>Ejecución #{{ execution.id }}</h1>
-<p><strong>Alerta:</strong> {{ execution.alert.title }} ({{ execution.alert.id }})</p>
-<p><strong>Playbook:</strong> {{ execution.playbook.name }}</p>
-<p><strong>Estado:</strong> {{ execution.status }}</p>
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="mb-1">Ejecución #{{ execution.id }}</h2>
+        <div class="text-secondary">Detalle completo de orquestación</div>
+    </div>
+    <a class="btn btn-outline-light" href="{% url 'executions_list' %}">Volver</a>
+</div>
 
-<h4>Pasos</h4>
-<table class="table">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>Tipo</th>
-            <th>Estado</th>
-            <th>Inicio</th>
-            <th>Fin</th>
-            <th>Output/Error</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for step in execution.steps.all %}
-        <tr>
-            <td>{{ step.id }}</td>
-            <td>{{ step.action_type }}</td>
-            <td>{{ step.status }}</td>
-            <td>{{ step.started_at }}</td>
-            <td>{{ step.finished_at }}</td>
-            <td>
-                {% if step.output %}
-                    <pre>{{ step.output }}</pre>
-                {% endif %}
-                {% if step.error %}
-                    <pre class="text-danger">{{ step.error }}</pre>
-                {% endif %}
-            </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6">Sin pasos</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-secondary">Alerta</div>
+                <div class="fw-semibold">{{ execution.alert.title }} (#{{ execution.alert.id }})</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-secondary">Playbook</div>
+                <div class="fw-semibold">{{ execution.playbook.name }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-secondary">Estado</div>
+                <div class="fw-semibold">{{ execution.status }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="fw-semibold">Pasos</div>
+            <input class="form-control form-control-sm search-input" style="max-width: 240px;" placeholder="Buscar pasos" data-table-search="stepsTable">
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover" id="stepsTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Tipo</th>
+                        <th>Estado</th>
+                        <th>Inicio</th>
+                        <th>Fin</th>
+                        <th>Output/Error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for step in execution.steps.all %}
+                    <tr>
+                        <td>{{ step.id }}</td>
+                        <td>{{ step.action_type }}</td>
+                        <td>
+                            {% if step.status == 'success' %}
+                                <span class="badge bg-success">Success</span>
+                            {% elif step.status == 'failed' %}
+                                <span class="badge bg-danger">Failed</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ step.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ step.started_at }}</td>
+                        <td>{{ step.finished_at }}</td>
+                        <td>
+                            {% if step.output %}
+                                <pre class="text-secondary">{{ step.output }}</pre>
+                            {% endif %}
+                            {% if step.error %}
+                                <pre class="text-danger">{{ step.error }}</pre>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">Sin pasos</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
