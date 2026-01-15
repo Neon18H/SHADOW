@@ -6,7 +6,7 @@ from .models import Playbook, PlaybookAction, IntegrationStatus
 class PlaybookForm(forms.ModelForm):
     class Meta:
         model = Playbook
-        fields = ['name', 'description', 'enabled', 'match_types', 'min_severity', 'mode']
+        fields = ['name', 'description', 'enabled', 'match_types', 'min_severity', 'mode', 'two_person_on_critical']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'match_types': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
@@ -14,6 +14,7 @@ class PlaybookForm(forms.ModelForm):
             'min_severity': forms.Select(attrs={'class': 'form-select'}),
             'mode': forms.Select(attrs={'class': 'form-select'}),
             'enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'two_person_on_critical': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
     def clean_match_types(self):

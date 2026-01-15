@@ -3,86 +3,53 @@
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
         <h2 class="mb-1">Ejecución #{{ execution.id }}</h2>
-        <div class="text-secondary">Detalle completo de orquestación</div>
+        <div class="text-secondary">Playbook {{ execution.playbook.name }} · Status {{ execution.status }}</div>
     </div>
-    <a class="btn btn-outline-light" href="{% url 'executions_list' %}">Volver</a>
+    <span class="chip">{% if execution.dry_run %}Dry-run{% else %}Live{% endif %}</span>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-body">
-                <div class="text-secondary">Alerta</div>
-                <div class="fw-semibold">{{ execution.alert.title }} (#{{ execution.alert.id }})</div>
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="glass-card micro-card">
+            <div class="glass-card-body">
+                <div><strong>Playbook:</strong> {{ execution.playbook.name }}</div>
+                <div><strong>Versión:</strong> {% if execution.playbook_version %}v{{ execution.playbook_version.version }}{% else %}-{% endif %}</div>
+                <div><strong>Alert ID:</strong> {{ execution.alert.id }}</div>
+                <div><strong>Solicitado por:</strong> {{ execution.requested_by|default:"-" }}</div>
+                <div><strong>Aprobado por:</strong> {{ execution.approved_by|default:"-" }}</div>
+                <div><strong>Aprobaciones requeridas:</strong> {{ execution.required_approvals }}</div>
+                <div><strong>Inicio:</strong> {{ execution.started_at }}</div>
+                <div><strong>Fin:</strong> {{ execution.finished_at|default:"-" }}</div>
             </div>
         </div>
     </div>
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-body">
-                <div class="text-secondary">Playbook</div>
-                <div class="fw-semibold">{{ execution.playbook.name }}</div>
+    <div class="col-lg-7">
+        <div class="glass-card micro-card">
+            <div class="glass-card-body">
+                <div class="fw-semibold mb-2">Steps</div>
+                <div class="table-responsive">
+                    <table class="table-soc">
+                        <thead>
+                            <tr>
+                                <th>Acción</th>
+                                <th>Status</th>
+                                <th>Output</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for step in execution.steps.all %}
+                            <tr>
+                                <td>{{ step.action_type }}</td>
+                                <td>{{ step.status }}</td>
+                                <td>{{ step.output|default:step.error }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3">Sin steps</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-body">
-                <div class="text-secondary">Estado</div>
-                <div class="fw-semibold">{{ execution.status }}</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-body">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-            <div class="fw-semibold">Pasos</div>
-            <input class="form-control form-control-sm search-input" style="max-width: 240px;" placeholder="Buscar pasos" data-table-search="stepsTable">
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover" id="stepsTable">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Tipo</th>
-                        <th>Estado</th>
-                        <th>Inicio</th>
-                        <th>Fin</th>
-                        <th>Output/Error</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for step in execution.steps.all %}
-                    <tr>
-                        <td>{{ step.id }}</td>
-                        <td>{{ step.action_type }}</td>
-                        <td>
-                            {% if step.status == 'success' %}
-                                <span class="badge bg-success">Success</span>
-                            {% elif step.status == 'failed' %}
-                                <span class="badge bg-danger">Failed</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ step.status }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ step.started_at }}</td>
-                        <td>{{ step.finished_at }}</td>
-                        <td>
-                            {% if step.output %}
-                                <pre class="text-secondary">{{ step.output }}</pre>
-                            {% endif %}
-                            {% if step.error %}
-                                <pre class="text-danger">{{ step.error }}</pre>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="6">Sin pasos</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
     </div>
 </div>

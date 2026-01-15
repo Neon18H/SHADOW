@@ -36,6 +36,77 @@
         });
     });
 
+    document.querySelectorAll('[data-skeleton]').forEach((el) => {
+        el.classList.add('skeleton');
+        setTimeout(() => el.classList.remove('skeleton'), 800);
+    });
+
+    const drawer = document.querySelector('[data-evidence-drawer]');
+    const drawerTabs = document.querySelectorAll('[data-drawer-tab]');
+    document.querySelectorAll('[data-drawer-open]').forEach((btn) => {
+        btn.addEventListener('click', () => body.classList.add('drawer-open'));
+    });
+    document.querySelectorAll('[data-drawer-close]').forEach((btn) => {
+        btn.addEventListener('click', () => body.classList.remove('drawer-open'));
+    });
+    drawerTabs.forEach((tab) => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.drawerTab;
+            drawerTabs.forEach((item) => item.classList.remove('active'));
+            tab.classList.add('active');
+            drawer?.querySelectorAll('[data-drawer-pane]').forEach((pane) => {
+                pane.classList.toggle('active', pane.dataset.drawerPane === target);
+            });
+        });
+    });
+
+    document.querySelectorAll('.btn-soc').forEach((button) => {
+        button.addEventListener('click', () => {
+            button.classList.add('pulse');
+            setTimeout(() => button.classList.remove('pulse'), 250);
+        });
+    });
+
+    const funnel = document.querySelector('[data-funnel]');
+    if (funnel) {
+        funnel.addEventListener('mousemove', (event) => {
+            const rect = funnel.getBoundingClientRect();
+            const offsetX = ((event.clientX - rect.left) / rect.width - 0.5) * 10;
+            funnel.style.transform = `rotateY(${offsetX}deg)`;
+        });
+        funnel.addEventListener('mouseleave', () => {
+            funnel.style.transform = 'rotateY(0deg)';
+        });
+    }
+
+    const autoRefreshToggle = document.querySelector('[data-auto-refresh]');
+    let refreshInterval;
+    const refreshSummary = () => {
+        fetch('/api/metrics/summary')
+            .then((res) => res.json())
+            .then((data) => {
+                document.querySelectorAll('[data-metric]').forEach((el) => {
+                    const key = el.dataset.metric;
+                    if (data[key] !== undefined && data[key] !== null) {
+                        el.textContent = data[key];
+                    }
+                });
+            })
+            .catch(() => {
+                showToast('No se pudo actualizar el resumen', 'danger');
+            });
+    };
+    if (autoRefreshToggle) {
+        autoRefreshToggle.addEventListener('change', () => {
+            if (autoRefreshToggle.checked) {
+                refreshSummary();
+                refreshInterval = setInterval(refreshSummary, 15000);
+            } else if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    }
+
     const chartElements = {
         severity: document.getElementById('chartSeverity'),
         alerts: document.getElementById('chartAlertsOverTime'),
@@ -51,14 +122,14 @@
         plugins: {
             legend: {
                 labels: {
-                    color: '#e5edf7',
+                    color: '#e8eef7',
                     boxWidth: 12,
                 }
             },
         },
         scales: {
-            x: { ticks: { color: '#8f9bb3' }, grid: { color: 'rgba(255,255,255,0.06)' } },
-            y: { ticks: { color: '#8f9bb3' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+            x: { ticks: { color: '#8a97b3' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+            y: { ticks: { color: '#8a97b3' }, grid: { color: 'rgba(255,255,255,0.06)' } },
         }
     };
 
@@ -81,8 +152,8 @@
                     datasets: [{
                         label: 'Alertas',
                         data: data.data,
-                        borderColor: '#ff8c42',
-                        backgroundColor: 'rgba(255, 140, 66, 0.18)',
+                        borderColor: '#ff8a3d',
+                        backgroundColor: 'rgba(255, 138, 61, 0.18)',
                         tension: 0.4,
                         fill: true,
                     }]
@@ -109,7 +180,7 @@
             labels: severity.labels,
             datasets: [{
                 data: severity.data,
-                backgroundColor: ['#43aa8b', '#f9c74f', '#f3722c', '#e63946'],
+                backgroundColor: ['#22c55e', '#facc15', '#f97316', '#ef4444'],
                 borderColor: 'rgba(255,255,255,0.08)'
             }]
         }, { scales: {} });
@@ -119,15 +190,15 @@
             datasets: [{
                 label: 'Pipeline',
                 data: pipeline.data,
-                backgroundColor: 'rgba(255, 140, 66, 0.5)',
-                borderColor: '#ff8c42',
+                backgroundColor: 'rgba(255, 138, 61, 0.5)',
+                borderColor: '#ff8a3d',
                 borderWidth: 1,
             }]
         }, {
             indexAxis: 'y',
             scales: {
-                x: { ticks: { color: '#8f9bb3' }, grid: { color: 'rgba(255,255,255,0.06)' } },
-                y: { ticks: { color: '#e5edf7' }, grid: { display: false } },
+                x: { ticks: { color: '#8a97b3' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+                y: { ticks: { color: '#e8eef7' }, grid: { display: false } },
             }
         });
 
@@ -136,8 +207,8 @@
             datasets: [{
                 label: 'Coverage %',
                 data: coverage.data,
-                borderColor: '#ffb26b',
-                backgroundColor: 'rgba(255, 178, 107, 0.18)',
+                borderColor: '#2dd4bf',
+                backgroundColor: 'rgba(45, 212, 191, 0.16)',
                 tension: 0.35,
                 fill: true,
             }]

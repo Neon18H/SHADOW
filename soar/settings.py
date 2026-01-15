@@ -42,6 +42,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.integration_summary',
             ],
         },
     },
@@ -104,6 +105,9 @@ WAZUH_API_USER = os.getenv('WAZUH_API_USER', '')
 WAZUH_API_PASSWORD = os.getenv('WAZUH_API_PASSWORD', '')
 WAZUH_API_TOKEN = os.getenv('WAZUH_API_TOKEN', '')
 WAZUH_VERIFY_TLS = os.getenv('WAZUH_VERIFY_TLS', 'true').lower() == 'true'
+
+INCIDENT_CORRELATION_WINDOW_MINUTES = int(os.getenv('INCIDENT_CORRELATION_WINDOW_MINUTES', '30'))
+CASE_SLA_HOURS = int(os.getenv('CASE_SLA_HOURS', '24'))
 
 LOGGING = {
     'version': 1,

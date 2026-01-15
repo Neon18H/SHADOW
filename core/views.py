@@ -3,7 +3,7 @@ import logging
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db.models import Count, Avg, F
+from django.db.models import Count, Avg, F, Min
 from django.db.models.functions import TruncDate
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -14,10 +14,18 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .forms import PlaybookForm, PlaybookActionFormSet, IntegrationConfigForm
-from .models import Alert, Playbook, Execution, AuditLog, IntegrationStatus
+from .models import (
+    Alert,
+    Case,
+    Execution,
+    Incident,
+    IntegrationStatus,
+    Playbook,
+    PlaybookVersion,
+)
 from .serializers import WazuhAlertSerializer
 from .services import PlaybookEngine, WazuhClient
-from .utils import map_severity, compute_fingerprint, now
+from .utils import map_severity, compute_fingerprint, now, extract_attacker_ip, correlation_key
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +50,29 @@ def dashboard(request):
     severity_counts = Alert.objects.values('severity').annotate(total=Count('id'))
     failed_execs = Execution.objects.filter(status='failed').count()
     mttr = Execution.objects.filter(status='success').aggregate(avg=Avg(F('finished_at') - F('started_at')))
+    mtta = Alert.objects.annotate(first_exec=Min('executions__started_at')).exclude(
+        first_exec__isnull=True
+    ).aggregate(avg=Avg(F('first_exec') - F('first_seen')))
     latest_alerts = Alert.objects.all()[:10]
     open_statuses = ['new', 'in_progress']
     critical_open = Alert.objects.filter(severity='critical', status__in=open_statuses).count()
     high_open = Alert.objects.filter(severity='high', status__in=open_statuses).count()
     last_week = today - timezone.timedelta(days=6)
     playbooks_executed = Execution.objects.filter(started_at__date__gte=last_week).count()
+    cases_open = Case.objects.exclude(status__in=['resolved', 'closed']).count()
+    cases_with_sla = Case.objects.filter(resolved_at__isnull=False, sla_due_at__isnull=False)
+    sla_met = cases_with_sla.filter(resolved_at__lte=F('sla_due_at')).count()
+    sla_total = cases_with_sla.count()
+    sla_rate = (sla_met / sla_total * 100) if sla_total else 0
+
+    analyst_metrics_raw = Execution.objects.filter(
+        requested_by__isnull=False,
+        status__in=['success', 'failed', 'partial'],
+    ).values('requested_by__username').annotate(
+        executions=Count('id'),
+        mttr=Avg(F('finished_at') - F('started_at')),
+        mtta=Avg(F('started_at') - F('alert__first_seen')),
+    ).order_by('-executions')
 
     severity_map = {item['severity']: item['total'] for item in severity_counts}
 
@@ -68,17 +93,29 @@ def dashboard(request):
         'severity_counts': severity_map,
         'failed_execs': failed_execs,
         'mttr': _format_duration(mttr['avg']),
+        'mtta': _format_duration(mtta['avg']),
         'latest_alerts': latest_alerts,
         'critical_open': critical_open,
         'high_open': high_open,
         'playbooks_executed': playbooks_executed,
+        'cases_open': cases_open,
+        'sla_rate': round(sla_rate, 1),
+        'analyst_metrics': [
+            {
+                'requested_by__username': item['requested_by__username'],
+                'executions': item['executions'],
+                'mttr': _format_duration(item['mttr']),
+                'mtta': _format_duration(item['mtta']),
+            }
+            for item in analyst_metrics_raw
+        ],
     }
     return render(request, 'core/dashboard.html', context)
 
 
 @login_required
 def alerts_list(request):
-    alerts = Alert.objects.all()
+    alerts = Alert.objects.select_related('incident')
     severity = request.GET.get('severity')
     status_filter = request.GET.get('status')
     agent = request.GET.get('agent')
@@ -103,16 +140,46 @@ def alerts_list(request):
 
 
 @login_required
+def cases_list(request):
+    cases = Case.objects.select_related('assigned_to', 'incident')
+    status_filter = request.GET.get('status')
+    severity = request.GET.get('severity')
+    if status_filter:
+        cases = cases.filter(status=status_filter)
+    if severity:
+        cases = cases.filter(severity=severity)
+    return render(request, 'core/cases_list.html', {'cases': cases})
+
+
+@login_required
+def case_detail(request, case_id):
+    case = get_object_or_404(Case, pk=case_id)
+    context = {
+        'case': case,
+        'tasks': case.tasks.select_related('assigned_to'),
+        'observables': case.observables.all(),
+        'timeline': case.timeline.select_related('actor'),
+        'evidence': case.evidence.select_related('collected_by'),
+    }
+    return render(request, 'core/case_detail.html', context)
+
+
+@login_required
 def alert_detail(request, alert_id):
     alert = get_object_or_404(Alert, pk=alert_id)
     engine = PlaybookEngine()
     playbooks = engine.applicable_playbooks(alert)
-    return render(request, 'core/alert_detail.html', {'alert': alert, 'playbooks': playbooks})
+    latest_execution = alert.executions.prefetch_related('steps').order_by('-started_at').first()
+    return render(request, 'core/alert_detail.html', {
+        'alert': alert,
+        'playbooks': playbooks,
+        'latest_execution': latest_execution,
+    })
 
 
 @login_required
 def playbooks_list(request):
-    playbooks = Playbook.objects.all()
+    playbooks = Playbook.objects.prefetch_related('versions')
     return render(request, 'core/playbooks_list.html', {'playbooks': playbooks})
 
 
@@ -126,6 +193,8 @@ def playbook_create(request):
             playbook = form.save()
             formset.instance = playbook
             formset.save()
+            engine = PlaybookEngine()
+            engine.create_version(playbook, request.user, change_summary=request.POST.get('change_summary', ''))
             _audit(request, 'playbook.create', playbook, after={'name': playbook.name})
             messages.success(request, 'Playbook creado')
             return redirect('playbooks_list')
@@ -146,6 +215,8 @@ def playbook_edit(request, playbook_id):
         if form.is_valid() and formset.is_valid():
             playbook = form.save()
             formset.save()
+            engine = PlaybookEngine()
+            engine.create_version(playbook, request.user, change_summary=request.POST.get('change_summary', ''))
             _audit(request, 'playbook.update', playbook, before=before, after={'name': playbook.name})
             messages.success(request, 'Playbook actualizado')
             return redirect('playbooks_list')
@@ -156,8 +227,41 @@ def playbook_edit(request, playbook_id):
 
 
 @login_required
+@permission_required('core.change_playbook', raise_exception=True)
+def playbook_rollback(request, playbook_id, version_id):
+    playbook = get_object_or_404(Playbook, pk=playbook_id)
+    version = get_object_or_404(PlaybookVersion, pk=version_id, playbook=playbook)
+    snapshot = version.definition_snapshot
+    playbook.name = snapshot.get('name', playbook.name)
+    playbook.description = snapshot.get('description', playbook.description)
+    playbook.enabled = snapshot.get('enabled', playbook.enabled)
+    playbook.match_types = snapshot.get('match_types', playbook.match_types)
+    playbook.min_severity = snapshot.get('min_severity', playbook.min_severity)
+    playbook.mode = snapshot.get('mode', playbook.mode)
+    playbook.two_person_on_critical = snapshot.get('two_person_on_critical', playbook.two_person_on_critical)
+    playbook.save()
+    playbook.actions.all().delete()
+    for action in snapshot.get('actions', []):
+        playbook.actions.create(
+            type=action.get('type', 'notify'),
+            order=action.get('order', 1),
+            config=action.get('config', {}),
+        )
+    engine = PlaybookEngine()
+    engine.create_version(
+        playbook,
+        request.user,
+        change_summary=f"Rollback a versión {version.version}",
+        rollback_from=version,
+    )
+    _audit(request, 'playbook.rollback', playbook, after={'version': version.version})
+    messages.success(request, f'Playbook revertido a versión {version.version}')
+    return redirect('playbook_edit', playbook_id=playbook.id)
+
+
+@login_required
 def executions_list(request):
-    executions = Execution.objects.select_related('alert', 'playbook')
+    executions = Execution.objects.select_related('alert', 'playbook', 'playbook_version')
     return render(request, 'core/executions_list.html', {'executions': executions})
 
 
@@ -256,7 +360,44 @@ class WazuhWebhookView(APIView):
             alert.raw_payload = request.data
             alert.save(update_fields=['occurrences', 'last_seen', 'raw_payload'])
 
+        attacker_ip = extract_attacker_ip(request.data)
+        correlation = correlation_key(normalized['agent_id'], normalized['rule_id'], attacker_ip)
+        window = timezone.now() - timezone.timedelta(
+            minutes=getattr(settings, 'INCIDENT_CORRELATION_WINDOW_MINUTES', 30)
+        )
+        incident = Incident.objects.filter(
+            correlation_key=correlation,
+            last_seen__gte=window,
+        ).first()
+        if not incident:
+            incident = Incident.objects.create(
+                title=title,
+                severity=severity,
+                agent_id=normalized['agent_id'],
+                rule_id=normalized['rule_id'],
+                attacker_ip=attacker_ip,
+                correlation_key=correlation,
+                first_seen=alert.first_seen,
+                last_seen=alert.last_seen,
+                alert_count=1,
+            )
+        else:
+            incident.alert_count += 1
+            incident.last_seen = alert.last_seen
+            incident.severity = severity
+            incident.save(update_fields=['alert_count', 'last_seen', 'severity'])
+        alert.incident = incident
+        alert.save(update_fields=['incident'])
+
         IntegrationStatus.objects.filter(name='wazuh').update(last_heartbeat=timezone.now())
+        IntegrationStatus.objects.update_or_create(
+            name='webhook',
+            defaults={'last_status': 'ok', 'last_heartbeat': timezone.now()},
+        )
+        IntegrationStatus.objects.update_or_create(
+            name='queue',
+            defaults={'last_status': 'ok', 'last_heartbeat': timezone.now()},
+        )
 
         logger.info('alert ingested %s', alert.id)
         return Response({'id': alert.id, 'created': created}, status=status.HTTP_201_CREATED)
@@ -283,7 +424,8 @@ class PlaybookExecuteView(APIView):
         alert = get_object_or_404(Alert, pk=alert_id)
         playbook = get_object_or_404(Playbook, pk=playbook_id)
         engine = PlaybookEngine()
-        execution = engine.execute(alert, playbook, request.user)
+        dry_run = bool(request.data.get('dry_run'))
+        execution = engine.execute(alert, playbook, request.user, dry_run=dry_run)
         _audit(request, 'playbook.execute', execution, after={'status': execution.status})
         return Response({'execution_id': execution.id, 'status': execution.status})
 
@@ -304,6 +446,9 @@ class ExecutionStatusView(APIView):
             'id': execution.id,
             'status': execution.status,
             'finished_at': execution.finished_at,
+            'dry_run': execution.dry_run,
+            'required_approvals': execution.required_approvals,
+            'approvals': execution.approvals.count(),
             'steps': [
                 {
                     'id': step.id,
@@ -408,3 +553,38 @@ def mttr_trend(request):
         labels.append(day.isoformat())
         series.append(round(avg.total_seconds() / 60, 2) if avg else 0)
     return JsonResponse({'labels': labels, 'data': series})
+
+
+@login_required
+def metrics_summary(request):
+    today = timezone.now().date()
+    alerts_today = Alert.objects.filter(first_seen__date=today).count()
+    open_statuses = ['new', 'in_progress']
+    critical_open = Alert.objects.filter(severity='critical', status__in=open_statuses).count()
+    high_open = Alert.objects.filter(severity='high', status__in=open_statuses).count()
+    mttr = Execution.objects.filter(status='success').aggregate(avg=Avg(F('finished_at') - F('started_at')))
+    mtta = Alert.objects.annotate(first_exec=Min('executions__started_at')).exclude(
+        first_exec__isnull=True
+    ).aggregate(avg=Avg(F('first_exec') - F('first_seen')))
+    cases_open = Case.objects.exclude(status__in=['resolved', 'closed']).count()
+
+    def _format_duration(duration):
+        if not duration:
+            return '-'
+        total_seconds = int(duration.total_seconds())
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        if hours:
+            return f"{hours}h {minutes}m"
+        if minutes:
+            return f"{minutes}m {seconds}s"
+        return f"{seconds}s"
+
+    return JsonResponse({
+        'alerts_today': alerts_today,
+        'critical_open': critical_open,
+        'high_open': high_open,
+        'mtta': _format_duration(mtta['avg']),
+        'mttr': _format_duration(mttr['avg']),
+        'cases_open': cases_open,
+    })

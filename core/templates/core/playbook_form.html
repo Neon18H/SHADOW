@@ -2,83 +2,85 @@
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
-        <h2 class="mb-1">{% if playbook %}Editar Playbook{% else %}Nuevo Playbook{% endif %}</h2>
-        <div class="text-secondary">Define reglas de automatización</div>
+        <h2 class="mb-1">{% if playbook %}Editar{% else %}Nuevo{% endif %} playbook</h2>
+        <div class="text-secondary">Versionado automático y approvals.</div>
     </div>
-    <a class="btn btn-outline-light" href="{% url 'playbooks_list' %}">Volver</a>
+    <a class="btn-soc btn-soc-outline" href="{% url 'playbooks_list' %}">Volver</a>
 </div>
 
-<form method="post">
+<form method="post" class="glass-card">
     {% csrf_token %}
-    <div class="row g-3">
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-body">
-                    {{ form.non_field_errors }}
-                    <div class="mb-3">
-                        <label class="form-label">Nombre</label>
-                        {{ form.name }}
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Descripción</label>
-                        {{ form.description }}
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Match types</label>
-                        {{ form.match_types }}
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Severidad mínima</label>
-                        {{ form.min_severity }}
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Modo</label>
-                        {{ form.mode }}
-                    </div>
-                    <div class="form-check form-switch">
-                        {{ form.enabled }}
-                        <label class="form-check-label">Playbook habilitado</label>
-                    </div>
-                </div>
+    <div class="glass-card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Nombre</label>
+                {{ form.name }}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Severidad mínima</label>
+                {{ form.min_severity }}
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">Descripción</label>
+                {{ form.description }}
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">Match types (JSON list)</label>
+                {{ form.match_types }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Modo</label>
+                {{ form.mode }}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Enabled</label>
+                <div class="form-check">{{ form.enabled }} <label class="form-check-label">Activo</label></div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Two-person rule</label>
+                <div class="form-check">{{ form.two_person_on_critical }} <label class="form-check-label">Aplicar a críticos</label></div>
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">Resumen de cambios (versionado)</label>
+                <input class="form-control" name="change_summary" placeholder="Ej: ajustar bloqueo IP">
             </div>
         </div>
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="fw-semibold">Acciones</div>
-                        <span class="chip">Config JSON</span>
-                    </div>
-                    {{ formset.management_form }}
-                    {% for form in formset %}
-                        <div class="border rounded-3 p-3 mb-3">
-                            {{ form.id }}
-                            <div class="row g-2 align-items-center">
-                                <div class="col-md-4">
-                                    <label class="form-label">Tipo</label>
-                                    {{ form.type }}
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label">Orden</label>
-                                    {{ form.order }}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Config</label>
-                                    {{ form.config }}
-                                </div>
-                                <div class="col-12">
-                                    <div class="form-check">
-                                        {{ form.DELETE }}
-                                        <label class="form-check-label">Eliminar acción</label>
-                                    </div>
-                                </div>
+        <hr class="my-4">
+        <h5>Acciones</h5>
+        {{ formset.management_form }}
+        <div class="row g-3">
+            {% for action_form in formset %}
+            <div class="col-md-12">
+                <div class="glass-card">
+                    <div class="glass-card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo</label>
+                                {{ action_form.type }}
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Orden</label>
+                                {{ action_form.order }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Config (JSON)</label>
+                                {{ action_form.config }}
+                            </div>
+                            <div class="col-md-1 d-flex align-items-center">
+                                {% if action_form.instance.pk %}
+                                <label class="form-label">Eliminar</label>
+                                {{ action_form.DELETE }}
+                                {% endif %}
                             </div>
                         </div>
-                    {% endfor %}
+                    </div>
                 </div>
             </div>
+            {% endfor %}
+        </div>
+        <div class="mt-4">
+            <button class="btn-soc" type="submit">Guardar</button>
         </div>
     </div>
-    <button class="btn btn-info mt-4" type="submit">Guardar playbook</button>
 </form>
 {% endblock %}

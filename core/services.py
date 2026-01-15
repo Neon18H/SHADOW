@@ -1,10 +1,22 @@
+import difflib
+import json
 import logging
 import requests
 from django.conf import settings
 from django.utils import timezone
 from django.core.mail import send_mail
 
-from .models import Execution, ExecutionStep, Playbook, IntegrationStatus
+from .models import (
+    Asset,
+    Execution,
+    ExecutionApproval,
+    ExecutionStep,
+    Playbook,
+    PlaybookVersion,
+    IntegrationStatus,
+    RBACAssignment,
+    RBACPermission,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +96,47 @@ class PlaybookEngine:
     def __init__(self, wazuh_client=None):
         self.wazuh_client = wazuh_client or WazuhClient()
 
+    def create_version(self, playbook, user=None, change_summary='', rollback_from=None):
+        snapshot = self._snapshot_playbook(playbook)
+        latest = playbook.versions.order_by('-version').first()
+        version_number = (latest.version + 1) if latest else 1
+        diff = self._diff_snapshots(latest.definition_snapshot if latest else {}, snapshot)
+        return PlaybookVersion.objects.create(
+            playbook=playbook,
+            version=version_number,
+            change_summary=change_summary,
+            definition_snapshot=snapshot,
+            diff=diff,
+            created_by=user,
+            rollback_from=rollback_from,
+        )
+
+    def _snapshot_playbook(self, playbook):
+        actions = [
+            {
+                'type': action.type,
+                'order': action.order,
+                'config': action.config,
+            }
+            for action in playbook.actions.order_by('order')
+        ]
+        return {
+            'name': playbook.name,
+            'description': playbook.description,
+            'enabled': playbook.enabled,
+            'match_types': playbook.match_types,
+            'min_severity': playbook.min_severity,
+            'mode': playbook.mode,
+            'two_person_on_critical': playbook.two_person_on_critical,
+            'actions': actions,
+        }
+
+    def _diff_snapshots(self, before, after):
+        before_text = json.dumps(before, indent=2, sort_keys=True).splitlines(keepends=True)
+        after_text = json.dumps(after, indent=2, sort_keys=True).splitlines(keepends=True)
+        diff = difflib.unified_diff(before_text, after_text, fromfile='before', tofile='after')
+        return ''.join(diff)
+
     def applicable_playbooks(self, alert):
         playbooks = Playbook.objects.filter(enabled=True)
         applicable = []
@@ -109,14 +162,26 @@ class PlaybookEngine:
             })
         return simulation
 
-    def execute(self, alert, playbook, user):
+    def execute(self, alert, playbook, user, dry_run=False):
+        latest_version = playbook.versions.order_by('-version').first()
+        required_approvals, requires_approval = self._required_approvals(playbook)
+        if not dry_run:
+            for action in playbook.actions.all():
+                action_criticality = self._resolve_action_criticality(action)
+                if not self._can_execute(user, action.type, action_criticality):
+                    raise ValueError('RBAC: insufficient permissions for action')
         execution = Execution.objects.create(
             alert=alert,
             playbook=playbook,
+            playbook_version=latest_version,
             status='running',
             requested_by=user,
+            dry_run=dry_run,
+            required_approvals=required_approvals,
         )
-        if playbook.mode == 'requires_approval':
+        if dry_run:
+            return self._dry_run_execution(execution)
+        if requires_approval:
             execution.status = 'approved_required'
             execution.save(update_fields=['status'])
             return execution
@@ -124,6 +189,12 @@ class PlaybookEngine:
 
     def approve(self, execution, user):
         if execution.status != 'approved_required':
+            return execution
+        ExecutionApproval.objects.get_or_create(execution=execution, approver=user)
+        approvals = execution.approvals.count()
+        if execution.required_approvals and approvals < execution.required_approvals:
+            execution.approved_by = user
+            execution.save(update_fields=['approved_by'])
             return execution
         execution.approved_by = user
         execution.status = 'running'
@@ -160,6 +231,23 @@ class PlaybookEngine:
             execution.status = 'failed'
         else:
             execution.status = 'success'
+        execution.save(update_fields=['finished_at', 'status'])
+        return execution
+
+    def _dry_run_execution(self, execution):
+        for action in execution.playbook.actions.all():
+            output = self._describe_action(action, execution.alert)
+            ExecutionStep.objects.create(
+                execution=execution,
+                action_type=action.type,
+                action_config_snapshot=action.config,
+                status='success',
+                started_at=timezone.now(),
+                finished_at=timezone.now(),
+                output=f"dry-run: {output}",
+            )
+        execution.finished_at = timezone.now()
+        execution.status = 'success'
         execution.save(update_fields=['finished_at', 'status'])
         return execution
 
@@ -212,6 +300,19 @@ class PlaybookEngine:
             return 'script execution placeholder'
         raise ValueError(f'Unsupported action type: {action.type}')
 
+    def _describe_action(self, action, alert):
+        if action.type == 'wazuh_active_response':
+            return f"active response {action.config.get('command', 'unknown')} on {alert.agent_id or 'agent'}"
+        if action.type == 'http_api':
+            return f"http api {action.config.get('method', 'POST')} {action.config.get('url', '')}"
+        if action.type == 'notify':
+            return f"notify {action.config.get('email_to') or action.config.get('webhook_url', 'channel')}"
+        if action.type == 'ticket_stub':
+            return 'ticket stub create'
+        if action.type == 'script':
+            return f"script {action.config.get('path', 'custom')}"
+        return action.type
+
     def _format_value(self, value, alert):
         if not isinstance(value, str):
             return value
@@ -222,3 +323,41 @@ class PlaybookEngine:
             agent=alert.agent_name,
             ip=alert.agent_ip,
         )
+
+    def _resolve_action_criticality(self, action):
+        criticality = action.config.get('asset_criticality')
+        asset_id = action.config.get('asset_id')
+        if asset_id:
+            asset = Asset.objects.filter(id=asset_id).first()
+            if asset:
+                return asset.criticality
+        if criticality in {'low', 'medium', 'high', 'critical'}:
+            return criticality
+        return 'medium'
+
+    def _required_approvals(self, playbook):
+        requires_approval = playbook.mode == 'requires_approval'
+        if playbook.two_person_on_critical:
+            critical_actions = [
+                action for action in playbook.actions.all()
+                if self._resolve_action_criticality(action) in {'high', 'critical'}
+            ]
+            if critical_actions:
+                return 2, True
+        return (1 if requires_approval else 0), requires_approval
+
+    def _can_execute(self, user, action_type, criticality):
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        assignments = RBACAssignment.objects.filter(user=user).select_related('role')
+        if not assignments:
+            return False
+        permissions = RBACPermission.objects.filter(
+            role__in=[assignment.role for assignment in assignments],
+            action_type=action_type,
+        )
+        rank = {'low': 1, 'medium': 2, 'high': 3, 'critical': 4}
+        needed = rank.get(criticality, 2)
+        return any(rank.get(permission.max_criticality, 2) >= needed for permission in permissions)

@@ -6,15 +6,15 @@
         <div class="text-secondary">Estado y configuración de conectores</div>
     </div>
     <div class="d-flex gap-2">
-        <button class="btn btn-info" type="button" onclick="testConnection()">Test connection</button>
+        <button class="btn-soc" type="button" onclick="testConnection()">Test connection</button>
         <span class="chip">Wazuh</span>
     </div>
 </div>
 
 <div class="row g-3">
     <div class="col-lg-5">
-        <div class="card mb-3">
-            <div class="card-body">
+        <div class="glass-card mb-3">
+            <div class="glass-card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="fw-semibold">Estado Wazuh</div>
                     {% if status.enabled %}
@@ -56,8 +56,8 @@
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-body">
+        <div class="glass-card">
+            <div class="glass-card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="fw-semibold">Logs recientes</div>
                     <span class="chip">Últimos 5</span>
@@ -80,8 +80,8 @@
     </div>
 
     <div class="col-lg-7">
-        <div class="card">
-            <div class="card-body">
+        <div class="glass-card">
+            <div class="glass-card-body">
                 <div class="fw-semibold mb-3">Configuración (campos no sensibles)</div>
                 <form method="post">
                     {% csrf_token %}
@@ -110,7 +110,7 @@
                             </div>
                         </div>
                     </div>
-                    <button class="btn btn-info mt-4" type="submit">Guardar configuración</button>
+                    <button class="btn-soc mt-4" type="submit">Guardar configuración</button>
                 </form>
                 <div class="alert alert-info mt-4">
                     Los secretos (token/usuario/password) se gestionan por variables de entorno y nunca se muestran en pantalla.

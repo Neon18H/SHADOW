@@ -1,0 +1,111 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="mb-1">Caso #{{ case.id }}</h2>
+        <div class="text-secondary">{{ case.title }}</div>
+    </div>
+    <span class="chip">{{ case.status|title }}</span>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="glass-card micro-card">
+            <div class="glass-card-body">
+                <div><strong>Severidad:</strong> {{ case.severity }}</div>
+                <div><strong>Asignado:</strong> {{ case.assigned_to|default:"-" }}</div>
+                <div><strong>Incident:</strong> {% if case.incident %}#{{ case.incident.id }}{% else %}-{% endif %}</div>
+                <div><strong>SLA due:</strong> {{ case.sla_due_at|default:"-" }}</div>
+                <div><strong>Creado:</strong> {{ case.created_at }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="glass-card micro-card">
+            <div class="glass-card-body">
+                <div class="fw-semibold mb-2">Descripción</div>
+                <p class="text-secondary">{{ case.description|default:"Sin descripción" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="glass-card micro-card">
+            <div class="glass-card-body">
+                <div class="fw-semibold mb-3">Tasks</div>
+                <ul class="list-unstyled">
+                    {% for task in tasks %}
+                    <li class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>{{ task.title }}</span>
+                            <span class="text-secondary">{{ task.status }}</span>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="text-secondary">Sin tareas</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card micro-card">
+            <div class="glass-card-body">
+                <div class="fw-semibold mb-3">Observables</div>
+                <ul class="list-unstyled">
+                    {% for observable in observables %}
+                    <li class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>{{ observable.observable_type }}: {{ observable.value }}</span>
+                            <span class="text-secondary">{{ observable.confidence }}%</span>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="text-secondary">Sin observables</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card micro-card">
+            <div class="glass-card-body">
+                <div class="fw-semibold mb-3">Timeline</div>
+                <ul class="list-unstyled">
+                    {% for entry in timeline %}
+                    <li class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>{{ entry.description }}</span>
+                            <span class="text-secondary">{{ entry.timestamp }}</span>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="text-secondary">Sin eventos</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="glass-card micro-card">
+            <div class="glass-card-body">
+                <div class="fw-semibold mb-3">Evidence</div>
+                <ul class="list-unstyled">
+                    {% for item in evidence %}
+                    <li class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>{{ item.title }}</span>
+                            <span class="text-secondary">{{ item.evidence_type }}</span>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="text-secondary">Sin evidencia</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
