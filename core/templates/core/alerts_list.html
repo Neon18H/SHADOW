@@ -3,13 +3,13 @@
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
         <h2 class="mb-1">Alertas</h2>
-        <div class="text-secondary">Gestión y triage centralizado</div>
+        <div class="text-secondary">Gestión, correlación e incidentes asociados.</div>
     </div>
     <input class="form-control form-control-sm search-input" style="max-width: 260px;" placeholder="Buscar alertas" data-table-search="alertsTable">
 </div>
 
-<form class="card mb-4" method="get">
-    <div class="card-body">
+<form class="glass-card mb-4" method="get">
+    <div class="glass-card-body">
         <div class="row g-3">
             <div class="col-md-2">
                 <label class="form-label">Severidad</label>
@@ -48,8 +48,8 @@
                 <input class="form-control" type="date" name="to" value="{{ request.GET.to }}">
             </div>
             <div class="col-md-12 d-flex gap-2">
-                <button class="btn btn-info">Filtrar</button>
-                <a class="btn btn-outline-light" href="{% url 'alerts_list' %}">Limpiar</a>
+                <button class="btn-soc" type="submit">Filtrar</button>
+                <a class="btn-soc btn-soc-outline" href="{% url 'alerts_list' %}">Limpiar</a>
             </div>
         </div>
     </div>
@@ -66,34 +66,38 @@
 </div>
 {% endif %}
 
-<div class="card">
-    <div class="table-responsive">
-        <table class="table table-hover mb-0" id="alertsTable">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Severidad</th>
-                    <th>Título</th>
-                    <th>Agente</th>
-                    <th>Ocurrencias</th>
-                    <th>Último</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for alert in alerts %}
-                <tr>
-                    <td><a href="{% url 'alert_detail' alert.id %}" class="text-info">{{ alert.id }}</a></td>
-                    <td><span class="badge badge-severity severity-{{ alert.severity }}">{{ alert.severity|title }}</span></td>
-                    <td>{{ alert.title }}</td>
-                    <td>{{ alert.agent_name }}</td>
-                    <td>{{ alert.occurrences }}</td>
-                    <td>{{ alert.last_seen }}</td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="6">No hay alertas</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="glass-card">
+    <div class="glass-card-body">
+        <div class="table-responsive">
+            <table class="table-soc" id="alertsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Severidad</th>
+                        <th>Título</th>
+                        <th>Agente</th>
+                        <th>Incident</th>
+                        <th>Ocurrencias</th>
+                        <th>Último</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in alerts %}
+                    <tr>
+                        <td><a href="{% url 'alert_detail' alert.id %}" class="text-info">{{ alert.id }}</a></td>
+                        <td><span class="badge badge-severity severity-{{ alert.severity }}">{{ alert.severity|title }}</span></td>
+                        <td>{{ alert.title }}</td>
+                        <td>{{ alert.agent_name }}</td>
+                        <td>{% if alert.incident %}#{{ alert.incident.id }}{% else %}-{% endif %}</td>
+                        <td>{{ alert.occurrences }}</td>
+                        <td>{{ alert.last_seen }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7">No hay alertas</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

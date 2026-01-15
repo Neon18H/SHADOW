@@ -1,0 +1,43 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="mb-1">Casos</h2>
+        <div class="text-secondary">Case management, tareas y observables.</div>
+    </div>
+    <input class="form-control form-control-sm search-input" style="max-width: 260px;" placeholder="Buscar casos" data-table-search="casesTable">
+</div>
+
+<div class="glass-card">
+    <div class="glass-card-body">
+        <div class="table-responsive">
+            <table class="table-soc" id="casesTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Título</th>
+                        <th>Severidad</th>
+                        <th>Status</th>
+                        <th>Asignado</th>
+                        <th>SLA due</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for case in cases %}
+                    <tr>
+                        <td><a class="text-info" href="{% url 'case_detail' case.id %}">#{{ case.id }}</a></td>
+                        <td>{{ case.title }}</td>
+                        <td><span class="badge badge-severity severity-{{ case.severity }}">{{ case.severity|title }}</span></td>
+                        <td>{{ case.status }}</td>
+                        <td>{{ case.assigned_to|default:"-" }}</td>
+                        <td>{{ case.sla_due_at|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No hay casos</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

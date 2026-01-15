@@ -3,18 +3,21 @@
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
         <h2 class="mb-1">Alerta #{{ alert.id }}</h2>
-        <div class="text-secondary">Investigación y respuesta</div>
+        <div class="text-secondary">Investigación, correlación y respuesta automatizada.</div>
     </div>
-    <span class="chip">{{ alert.source|default:'wazuh'|upper }}</span>
+    <div class="d-flex gap-2">
+        <span class="chip">{{ alert.source|default:'wazuh'|upper }}</span>
+        <button class="btn-soc btn-soc-ghost btn-soc-sm" type="button" data-drawer-open>Evidencias</button>
+    </div>
 </div>
 
 <div class="row g-3">
     <div class="col-lg-8">
-        <div class="card mb-3">
-            <div class="card-body">
+        <div class="glass-card mb-3 micro-card">
+            <div class="glass-card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <h5 class="card-title mb-2">{{ alert.title }}</h5>
+                        <h5 class="mb-2">{{ alert.title }}</h5>
                         <p class="text-secondary">{{ alert.description }}</p>
                     </div>
                     <span class="badge badge-severity severity-{{ alert.severity }}">{{ alert.severity|title }}</span>
@@ -27,28 +30,20 @@
                 <div class="row mt-2">
                     <div class="col-md-4"><strong>Rule ID:</strong> {{ alert.rule_id }}</div>
                     <div class="col-md-4"><strong>Rule Level:</strong> {{ alert.rule_level }}</div>
-                    <div class="col-md-4"><strong>Manager:</strong> {{ alert.manager_name }}</div>
+                    <div class="col-md-4"><strong>Incident:</strong> {% if alert.incident %}#{{ alert.incident.id }}{% else %}-{% endif %}</div>
                 </div>
             </div>
         </div>
-        <div class="accordion" id="payloadAccordion">
-            <div class="accordion-item bg-transparent border-0">
-                <h2 class="accordion-header" id="headingPayload">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePayload">
-                        Raw Payload
-                    </button>
-                </h2>
-                <div id="collapsePayload" class="accordion-collapse collapse" data-bs-parent="#payloadAccordion">
-                    <div class="accordion-body">
-                        <pre class="text-secondary">{{ alert.raw_payload|pprint }}</pre>
-                    </div>
-                </div>
+        <div class="glass-card micro-card">
+            <div class="glass-card-body">
+                <div class="fw-semibold mb-2">Contexto del evento</div>
+                <pre class="text-secondary">{{ alert.raw_payload|pprint }}</pre>
             </div>
         </div>
     </div>
     <div class="col-lg-4">
-        <div class="card">
-            <div class="card-body">
+        <div class="glass-card micro-card">
+            <div class="glass-card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div class="fw-semibold">Playbooks sugeridos</div>
                     <span class="chip">{{ playbooks|length }} disponibles</span>
@@ -58,11 +53,12 @@
                     <li class="list-group-item bg-transparent border-0 d-flex justify-content-between align-items-center">
                         <div>
                             <div class="fw-semibold">{{ playbook.name }}</div>
-                            <small class="text-secondary">Modo: {{ playbook.mode }}</small>
+                            <small class="text-secondary">Modo: {{ playbook.mode }} · Two-person: {{ playbook.two_person_on_critical|yesno:"on,off" }}</small>
                         </div>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-info" onclick="simulatePlaybook({{ alert.id }})">Simular</button>
-                            <button class="btn btn-info" onclick="executePlaybook({{ alert.id }}, {{ playbook.id }})">Ejecutar</button>
+                        <div class="d-flex gap-2">
+                            <button class="btn-soc btn-soc-ghost btn-soc-sm" onclick="simulatePlaybook({{ alert.id }})">Simular</button>
+                            <button class="btn-soc btn-soc-outline btn-soc-sm" onclick="executePlaybook({{ alert.id }}, {{ playbook.id }}, true)">Dry-run</button>
+                            <button class="btn-soc btn-soc-sm" onclick="executePlaybook({{ alert.id }}, {{ playbook.id }}, false)">Ejecutar</button>
                         </div>
                     </li>
                     {% empty %}
@@ -74,6 +70,39 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block drawer_raw %}
+<pre class="text-secondary">{{ alert.raw_payload|pprint }}</pre>
+{% endblock %}
+
+{% block drawer_timeline %}
+<ul class="list-unstyled text-secondary">
+    <li>Primer visto: {{ alert.first_seen }}</li>
+    <li>Último visto: {{ alert.last_seen }}</li>
+    <li>Ocurrencias: {{ alert.occurrences }}</li>
+    {% if alert.incident %}
+    <li>Incident correlacionado: {{ alert.incident.id }}</li>
+    {% endif %}
+</ul>
+{% endblock %}
+
+{% block drawer_steps %}
+{% if latest_execution %}
+<div class="text-secondary mb-2">Última ejecución #{{ latest_execution.id }}</div>
+<ul class="list-unstyled">
+    {% for step in latest_execution.steps.all %}
+    <li class="mb-2">
+        <div class="d-flex justify-content-between">
+            <span>{{ step.action_type }}</span>
+            <span class="text-secondary">{{ step.status }}</span>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="text-secondary">Ejecuta un playbook para ver pasos aquí.</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -90,16 +119,20 @@ function simulatePlaybook(alertId) {
         headers: { 'X-CSRFToken': getCookie('csrftoken') }
     })
     .then(res => res.json())
-    .then(data => {
+    .then(() => {
         showToast('Simulación completada', 'info');
     })
     .catch(() => showToast('Error en simulación', 'danger'));
 }
 
-function executePlaybook(alertId, playbookId) {
+function executePlaybook(alertId, playbookId, dryRun) {
     fetch(`/api/alerts/${alertId}/playbooks/${playbookId}/execute`, {
         method: 'POST',
-        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ dry_run: dryRun })
     })
     .then(res => res.json())
     .then(data => {
@@ -130,7 +163,13 @@ function pollExecution(executionId) {
             const container = document.getElementById('executionStatus');
             let html = `<div class="alert alert-secondary">Estado: ${data.status}</div>`;
             if (data.status === 'approved_required') {
-                html += `<button class="btn btn-sm btn-warning" onclick="approveExecution(${data.id})">Aprobar</button>`;
+                html += `<div class="d-flex gap-2">
+                    <button class="btn-soc btn-soc-sm" onclick="approveExecution(${data.id})">Aprobar</button>
+                    <span class="text-secondary">${data.approvals}/${data.required_approvals} approvals</span>
+                </div>`;
+            }
+            if (data.dry_run) {
+                html += `<div class="text-secondary mt-2">Dry-run completado</div>`;
             }
             container.innerHTML = html;
             if (data.status === 'failed') {

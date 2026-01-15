@@ -33,3 +33,25 @@ def compute_fingerprint(data: dict) -> str:
 
 def now():
     return timezone.now()
+
+
+def extract_attacker_ip(payload: dict) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    candidates = [
+        payload.get('srcip'),
+        payload.get('source_ip'),
+        payload.get('src'),
+        payload.get('client_ip'),
+        payload.get('data', {}).get('srcip') if isinstance(payload.get('data'), dict) else None,
+        payload.get('data', {}).get('src') if isinstance(payload.get('data'), dict) else None,
+        payload.get('rule', {}).get('srcip') if isinstance(payload.get('rule'), dict) else None,
+    ]
+    for candidate in candidates:
+        if candidate:
+            return candidate
+    return None
+
+
+def correlation_key(agent_id: str, rule_id: str, attacker_ip: str | None) -> str:
+    return f"{agent_id or 'unknown'}:{rule_id or 'unknown'}:{attacker_ip or 'na'}"

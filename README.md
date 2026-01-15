@@ -1,6 +1,6 @@
 # SHADOW SOAR
 
-Plataforma SOAR centralizada con Django 5.x + DRF + Bootstrap 5 para integrar alertas y respuestas con Wazuh SIEM/EDR.
+Plataforma SOAR centralizada con Django 5.x + DRF + Bootstrap 5 (solo layout) para integrar alertas y respuestas con Wazuh SIEM/EDR.
 
 ## Requisitos
 
@@ -31,6 +31,9 @@ WAZUH_API_USER=wazuh
 WAZUH_API_PASSWORD=secret
 WAZUH_API_TOKEN=
 WAZUH_VERIFY_TLS=true
+
+INCIDENT_CORRELATION_WINDOW_MINUTES=30
+CASE_SLA_HOURS=24
 ```
 
 > Para producción, reemplaza SQLite por PostgreSQL usando la configuración estándar de Django (`DATABASES`) sin SQL crudo.
@@ -56,22 +59,60 @@ Ejemplo de payload:
 }
 ```
 
-## Playbooks
+## SOAR Enterprise
 
-Se cargan playbooks demo con migraciones:
+### Case Management
 
-- **Ransomware suspected (critical)** (requiere aprobación): notificación + active response.
-- **Brute force SSH (high)** (auto): bloquea IP + notifica.
+- **Case** con SLA automático, asignación y estados.
+- **Tasks**, **Observables**, **Timeline** y **Evidence** asociados al caso.
 
-## Active response en agentes (conceptual)
+### Correlation & Incidents
 
-Configura scripts de `active-response` en Wazuh Agents que acepten `command` y argumentos, p. ej.:
+- Correlación por **agent + rule + time window + attacker IP**.
+- `INCIDENT_CORRELATION_WINDOW_MINUTES` controla el rango temporal de agrupación.
 
-- `isolate_endpoint` → script que aísle la interfaz de red.
-- `kill_process` → script que termine un proceso específico.
-- `block_ip` → script local que bloquee una IP.
+### Playbooks profesionales
 
-> Estos scripts deben ser controlados y auditados por el equipo SOC antes de habilitarlos.
+- **PlaybookVersion** con snapshot, diff y rollback.
+- **Dry-run real** para previsualizar pasos antes de ejecutar.
+- **Aprobaciones** (requires_approval + two-person rule en activos críticos).
+
+### RBAC fino
+
+- Roles con permisos por tipo de acción (`action_type`).
+- Límite por criticidad (`max_criticality`).
+- Asignaciones por usuario (`RBACAssignment`).
+
+### Métricas y performance
+
+- **MTTA/MTTR** automáticos.
+- SLA por caso.
+- Panel de performance por analista.
+
+## Activación de approvals y RBAC
+
+1. Crear roles y permisos en Django Admin:
+   - `RBACRole`: SOC-Tier1, SOC-Tier2, etc.
+   - `RBACPermission`: `action_type` = `wazuh_active_response`/`http_api`/`notify`, `max_criticality` = low/medium/high/critical.
+   - `RBACAssignment`: asigna roles a usuarios.
+2. En acciones de playbook, define en `config`:
+
+```json
+{
+  "asset_criticality": "critical",
+  "command": "isolate_endpoint"
+}
+```
+
+3. Habilita `two_person_on_critical` en el playbook para two-person rule.
+
+## UI Enterprise SOC
+
+- Theme dark propio tipo Rapid7.
+- Sidebar sticky con estado de integraciones.
+- Dashboard con funnel 3D CSS/JS, glassmorphism y auto-refresh opcional.
+- Evidence drawer (raw JSON, timeline, steps).
+- Skeleton loaders para microinteracciones.
 
 ## Tests
 
@@ -85,11 +126,3 @@ python manage.py test
 - Rate limit básico en middleware para el webhook.
 - Auditoría append-only para acciones críticas.
 - Logs estructurados configurados en `settings.py`.
-
-## UI
-
-- Dashboard con métricas.
-- Alertas con detalle y raw payload.
-- Playbooks con edición de acciones.
-- Ejecuciones y auditoría.
-- Integraciones con prueba de conexión Wazuh.

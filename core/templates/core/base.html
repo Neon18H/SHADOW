@@ -18,13 +18,14 @@
             <div class="brand-mark">S</div>
             <div class="ms-2">
                 <div class="fw-semibold">SHADOW SOAR</div>
-                <small>SOC Console</small>
+                <small>Enterprise SOC</small>
             </div>
         </div>
         <nav class="nav flex-column sidebar-nav">
             <div class="sidebar-section">Overview</div>
             <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">Dashboard</a>
             <a class="nav-link {% if request.resolver_match.url_name == 'alerts_list' %}active{% endif %}" href="{% url 'alerts_list' %}">Alertas</a>
+            <a class="nav-link {% if request.resolver_match.url_name == 'cases_list' %}active{% endif %}" href="{% url 'cases_list' %}">Casos</a>
             <div class="sidebar-section mt-3">Automation</div>
             <a class="nav-link {% if request.resolver_match.url_name == 'playbooks_list' %}active{% endif %}" href="{% url 'playbooks_list' %}">Playbooks</a>
             <a class="nav-link {% if request.resolver_match.url_name == 'executions_list' %}active{% endif %}" href="{% url 'executions_list' %}">Ejecuciones</a>
@@ -32,9 +33,24 @@
             <a class="nav-link {% if request.resolver_match.url_name == 'audit_list' %}active{% endif %}" href="{% url 'audit_list' %}">Auditoría</a>
             <a class="nav-link {% if request.resolver_match.url_name == 'integrations' %}active{% endif %}" href="{% url 'integrations' %}">Integraciones</a>
         </nav>
+        <div class="sidebar-section mt-4">Estados</div>
+        <div class="sidebar-status">
+            <div class="status-pill {% if integration_statuses.wazuh and integration_statuses.wazuh.last_status == 'ok' %}ok{% elif integration_statuses.wazuh and integration_statuses.wazuh.last_status == 'error' %}error{% endif %}">
+                <span>Wazuh connected</span>
+                <span class="status-dot"></span>
+            </div>
+            <div class="status-pill {% if integration_statuses.webhook and integration_statuses.webhook.last_status == 'ok' %}ok{% elif integration_statuses.webhook and integration_statuses.webhook.last_status == 'error' %}error{% endif %}">
+                <span>Webhook ok</span>
+                <span class="status-dot"></span>
+            </div>
+            <div class="status-pill {% if integration_statuses.queue and integration_statuses.queue.last_status == 'ok' %}ok{% elif integration_statuses.queue and integration_statuses.queue.last_status == 'error' %}error{% endif %}">
+                <span>Queue ok</span>
+                <span class="status-dot"></span>
+            </div>
+        </div>
         <div class="mt-auto pt-4 sidebar-footer">
             <div>Enterprise SOAR</div>
-            <div>v1.0</div>
+            <div>v2.0</div>
         </div>
     </aside>
     <div class="sidebar-overlay" data-sidebar-overlay></div>
@@ -71,6 +87,30 @@
             {% endif %}
             {% block content %}{% endblock %}
         </main>
+    </div>
+</div>
+
+<div class="evidence-drawer" data-evidence-drawer>
+    <div class="drawer-header">
+        <div>
+            <div class="fw-semibold">Evidence Drawer</div>
+            <small class="text-secondary">Timeline & payloads</small>
+        </div>
+        <button class="btn-soc btn-soc-ghost btn-soc-sm" type="button" data-drawer-close>Cerrar</button>
+    </div>
+    <div class="drawer-tabs d-flex gap-2 mb-3">
+        <button class="active" type="button" data-drawer-tab="raw">Raw JSON</button>
+        <button type="button" data-drawer-tab="timeline">Timeline</button>
+        <button type="button" data-drawer-tab="steps">Steps</button>
+    </div>
+    <div class="drawer-pane active" data-drawer-pane="raw">
+        {% block drawer_raw %}{% endblock %}
+    </div>
+    <div class="drawer-pane" data-drawer-pane="timeline">
+        {% block drawer_timeline %}{% endblock %}
+    </div>
+    <div class="drawer-pane" data-drawer-pane="steps">
+        {% block drawer_steps %}{% endblock %}
     </div>
 </div>
 
